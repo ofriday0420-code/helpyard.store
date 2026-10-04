@@ -22,15 +22,29 @@ This is the first delivery milestone in the plan: engineering foundation and a w
 
 ## Quick start
 
-1. Copy `.env.example` to `.env` and adjust the local database values.
-2. Serve the application from the `public` directory using your PHP web server.
-3. Visit `/` for the storefront shell and `/api/v1/products` for JSON output.
+1. Install and start MySQL 8 or MariaDB, and enable PHP's `pdo_mysql` extension.
+2. Create the development database:
+   ```sql
+   CREATE DATABASE helpyard_store CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   ```
+3. Copy `.env.example` to `.env` and set the local database host, port, name, user, and password.
+4. From the project root, run `php database/migrate.php`, then `php database/seed.php`.
+5. Run the foundation checks with `php tests/run.php`.
+6. Start the server with `php -S 127.0.0.1:8000 -t public`.
+7. Visit `http://127.0.0.1:8000/` for the storefront shell, `http://127.0.0.1:8000/api/v1/products` for database-backed catalog JSON, `http://127.0.0.1:8000/api/v1/products/business-website-starter` for a product detail, and `http://127.0.0.1:8000/api/v1/categories` for categories.
+
+On Windows, run `php --ini` to find the active `php.ini`. If `pdo_mysql` is not listed by `php -m`, enable `extension=pdo_mysql` in that configuration, ensure `extension_dir` points to PHP's `ext` directory, restart the terminal, and verify `php -m` lists `pdo_mysql`.
 
 ## Notes
 
 - Base security rules are enforced in the roadmap and should be applied in later phases.
 - Browser values must never be trusted for pricing, quantity, discount, or payment confirmation.
 - Private digital assets must remain behind backend authorization checks.
+- The homepage is still a foundation shell. The product and category API routes now read from MySQL. Run migrations and seeders explicitly with the commands above; they do not run automatically on web requests.
+- Catalog API filters: `GET /api/v1/products?category=books&type=book&page=1&per_page=20`. Category and type values are validated; page size is capped at 50. Product detail is at `GET /api/v1/products/{slug}` and returns active product details, images, and active variants. If MySQL is unavailable, the API returns HTTP 503 rather than sample or success-shaped fallback data.
+- `.env` supports one `NAME=value` entry per line, with optional matching single or double quotes around values. Do not commit real secrets.
+- Migrations are tracked in `schema_migrations`; applied migration files must not be edited. Add a new numbered SQL migration for schema changes.
+- MySQL DDL statements are not fully transactional. If a migration fails partway, inspect the database before retrying; current schema statements use `CREATE TABLE IF NOT EXISTS` for safe reruns.
 
 ## Related source
 
