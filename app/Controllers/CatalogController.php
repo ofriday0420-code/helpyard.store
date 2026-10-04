@@ -34,6 +34,16 @@ class CatalogController
             $filters['product_type'] = $query['type'];
         }
 
+        if (isset($query['q']) && $query['q'] !== '') {
+            if (!is_string($query['q']) || strlen($query['q']) > 120 || preg_match('/[\x00-\x1F\x7F]/', $query['q'])) {
+                return $this->badRequest('Search must be 120 characters or fewer and cannot contain control characters.');
+            }
+            $searchTerm = trim($query['q']);
+            if ($searchTerm !== '') {
+                $filters['search'] = $searchTerm;
+            }
+        }
+
         $page = $this->positiveInteger($query['page'] ?? 1, 1);
         $perPage = min($this->positiveInteger($query['per_page'] ?? 20, 20), 50);
 
