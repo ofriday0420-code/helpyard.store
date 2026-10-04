@@ -6,6 +6,7 @@ use Helpyard\App\Core\Environment;
 use Helpyard\App\Core\Request;
 use Helpyard\App\Core\SqlScript;
 use Helpyard\App\Controllers\CatalogController;
+use Helpyard\App\Repositories\CatalogRepository;
 use Helpyard\App\Core\Response;
 use Helpyard\App\Core\Router;
 
@@ -55,6 +56,18 @@ try {
     );
     if ($catalog->index([], $invalidType)->status() !== 400) {
         throw new RuntimeException('Invalid product types should be rejected before querying the database.');
+    }
+
+    $invalidSearch = new Request(
+        ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/api/v1/products'],
+        ['q' => str_repeat('x', 121)]
+    );
+    if ($catalog->index([], $invalidSearch)->status() !== 400) {
+        throw new RuntimeException('Overlong search terms should be rejected before querying the database.');
+    }
+
+    if (CatalogRepository::escapeSearchTerm('100%_ready!') !== '100!%!_ready!!') {
+        throw new RuntimeException('Search wildcard characters were not escaped.');
     }
 
     $router = new Router();
