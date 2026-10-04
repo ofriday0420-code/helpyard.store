@@ -37,4 +37,11 @@ class Request
     {
         return $this->body;
     }
+
+    public function remoteAddress(): string
+    {
+        $address = $this->server['REMOTE_ADDR'] ?? '';
+
+        return is_string($address) ? $address : '';
+    }
 }
