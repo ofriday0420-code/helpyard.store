@@ -89,8 +89,8 @@ class Router
     private function callHandler(callable|array $handler, array $params, Request $request): Response
     {
         if (is_array($handler)) {
-            [$controllerName, $method] = $handler;
-            $controller = new $controllerName();
+            [$controllerReference, $method] = $handler;
+            $controller = is_string($controllerReference) ? new $controllerReference() : $controllerReference;
             $result = $controller->$method($params, $request);
 
             return $result instanceof Response ? $result : new Response(200, ['Content-Type' => 'application/json; charset=UTF-8'], $result);
