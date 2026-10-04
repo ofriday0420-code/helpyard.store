@@ -1,14 +1,13 @@
 <?php
 
-use Helpyard\App\Controllers\HomeController;
-use Helpyard\App\Controllers\CatalogController;
-use Helpyard\App\Core\Request;
+use Helpyard\App\Controllers\StorefrontController;
 use Helpyard\App\Core\Router;
 
 $webRouter = new Router();
-$webRouter->get('/', [HomeController::class, 'index']);
-$webRouter->get('/products', static function (array $params, Request $request) use ($config) {
-    return (new CatalogController($config['database']))->index($params, $request);
-});
+$storefront = new StorefrontController();
+$webRouter->get('/', [$storefront, 'index']);
+$webRouter->get('/product/{slug}', [$storefront, 'product']);
+$webRouter->get('/products', [$storefront, 'allProducts']);
+$webRouter->get('/{section}', [$storefront, 'catalog']);
 
 return $webRouter;
