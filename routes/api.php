@@ -1,21 +1,18 @@
 <?php
 
-use Helpyard\App\Controllers\ProductController;
+use Helpyard\App\Controllers\CatalogController;
+use Helpyard\App\Core\Request;
 use Helpyard\App\Core\Router;
 
 $apiRouter = new Router();
-$apiRouter->get('/api/v1/products', [ProductController::class, 'index']);
-$apiRouter->get('/api/v1/categories', static function (): array {
-    return [
-        'success' => true,
-        'categories' => [
-            ['id' => 1, 'name' => 'Courses'],
-            ['id' => 2, 'name' => 'Ready Websites'],
-            ['id' => 3, 'name' => 'Official Software'],
-            ['id' => 4, 'name' => 'Books'],
-            ['id' => 5, 'name' => 'Cyber-Security Devices'],
-        ],
-    ];
+$apiRouter->get('/api/v1/products', static function (array $params, Request $request) use ($config) {
+    return (new CatalogController($config['database']))->index($params, $request);
+});
+$apiRouter->get('/api/v1/products/{slug}', static function (array $params, Request $request) use ($config) {
+    return (new CatalogController($config['database']))->show($params, $request);
+});
+$apiRouter->get('/api/v1/categories', static function (array $params, Request $request) use ($config) {
+    return (new CatalogController($config['database']))->categories($params, $request);
 });
 
 return $apiRouter;
