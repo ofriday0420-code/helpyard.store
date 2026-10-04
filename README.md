@@ -32,6 +32,7 @@ This is the first delivery milestone in the plan: engineering foundation and a w
 5. Run the foundation checks with `php tests/run.php`.
 6. Start the server with `php -S 127.0.0.1:8000 -t public`.
 7. Visit `http://127.0.0.1:8000/` for the storefront, `/courses`, `/websites`, `/software`, `/books`, or `/devices` for the five sections, and `/product/business-website-starter` for a product page. The API is available at `/api/v1/products`, `/api/v1/products/{slug}`, and `/api/v1/categories`.
+8. Customer accounts are available at `/register`, `/login`, `/account`, and `/account/addresses`.
 
 On Windows, run `php --ini` to find the active `php.ini`. If `pdo_mysql` is not listed by `php -m`, enable `extension=pdo_mysql` in that configuration, ensure `extension_dir` points to PHP's `ext` directory, restart the terminal, and verify `php -m` lists `pdo_mysql`.
 
@@ -44,6 +45,8 @@ On Windows, run `php --ini` to find the active `php.ini`. If `pdo_mysql` is not 
 - Catalog API filters: `GET /api/v1/products?category=books&type=book&q=operations&page=1&per_page=20`. Search covers product name, descriptions, and category; query values and filters are validated, SQL wildcard characters are escaped, and page size is capped at 50. Product detail is at `GET /api/v1/products/{slug}` and returns active product details, images, and active variants. If MySQL is unavailable, the API returns HTTP 503 rather than sample or success-shaped fallback data.
 - `.env` supports one `NAME=value` entry per line, with optional matching single or double quotes around values. Do not commit real secrets.
 - Migrations are tracked in `schema_migrations`; applied migration files must not be edited. Add a new numbered SQL migration for schema changes.
+- The first authentication slice provides customer registration, login, logout, CSRF-protected forms, session rotation, login throttling, and a protected account page. Email verification and password-reset delivery are not yet enabled because no email provider is configured.
+- Customer account holders can update their display name and manage their own saved addresses. Address writes require CSRF tokens; ownership is enforced in every address query, and setting a default address replaces the previous default for that customer.
 - MySQL DDL statements are not fully transactional. If a migration fails partway, inspect the database before retrying; current schema statements use `CREATE TABLE IF NOT EXISTS` for safe reruns.
 
 ## Related source
