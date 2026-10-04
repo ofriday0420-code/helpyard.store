@@ -27,6 +27,6 @@ FROM categories c WHERE c.slug = 'books'
 ON DUPLICATE KEY UPDATE name = VALUES(name);
 
 INSERT INTO products (category_id, product_type, name, slug, short_description, description, price, compare_price, stock_quantity, is_active)
-SELECT c.id, 'device', 'Security Device Kit', 'security-device-kit', 'Complete home security package', 'USB and hardware kit for monitoring and protection.', 6500.00, 7800.00, 40, 1
+SELECT c.id, 'physical', 'Security Device Kit', 'security-device-kit', 'Complete home security package', 'USB and hardware kit for monitoring and protection.', 6500.00, 7800.00, 40, 1
 FROM categories c WHERE c.slug = 'cyber-security-devices'
 ON DUPLICATE KEY UPDATE name = VALUES(name);
