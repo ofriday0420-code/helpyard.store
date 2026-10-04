@@ -6,9 +6,11 @@ use Helpyard\App\Core\Environment;
 use Helpyard\App\Core\Request;
 use Helpyard\App\Core\SqlScript;
 use Helpyard\App\Controllers\CatalogController;
+use Helpyard\App\Controllers\AuthController;
 use Helpyard\App\Repositories\CatalogRepository;
 use Helpyard\App\Core\Response;
 use Helpyard\App\Core\Router;
+use Helpyard\App\Core\SessionSecurity;
 
 $file = tempnam(sys_get_temp_dir(), 'helpyard-env-');
 if ($file === false) {
@@ -70,6 +72,37 @@ try {
         throw new RuntimeException('Search wildcard characters were not escaped.');
     }
 
+    if (AuthController::validateRegistration('Customer Name', 'customer@example.com', 'long-enough-password') !== []) {
+        throw new RuntimeException('Valid customer registration details were rejected.');
+    }
+    if (AuthController::validateRegistration('Name', 'invalid-email', 'short') === []) {
+        throw new RuntimeException('Invalid registration data was accepted.');
+    }
+    $validAddress = [
+        'full_name' => 'Customer Name',
+        'phone' => '+8801000000000',
+        'address_line_1' => '12 Sample Road',
+        'address_line_2' => '',
+        'city' => 'Dhaka',
+        'postal_code' => '',
+        'country' => 'Bangladesh',
+    ];
+    if (AuthController::validateAddress($validAddress) !== []) {
+        throw new RuntimeException('Valid customer address was rejected.');
+    }
+    $invalidAddress = $validAddress;
+    $invalidAddress['country'] = '';
+    if (AuthController::validateAddress($invalidAddress) === []) {
+        throw new RuntimeException('Address without a required country was accepted.');
+    }
+
+    $csrfToken = SessionSecurity::csrfToken();
+    if (strlen($csrfToken) !== 64 || !SessionSecurity::verifyCsrfToken($csrfToken)
+        || SessionSecurity::verifyCsrfToken('invalid-token')
+    ) {
+        throw new RuntimeException('CSRF token generation or validation failed.');
+    }
+
     $router = new Router();
     $router->get('/products/{slug}', static function (array $params): Response {
         return new Response(200, [], $params);
@@ -100,7 +133,7 @@ try {
         }
     }
 
-    echo "Environment, SQL script, routing, and catalog validation tests passed.\n";
+    echo "Environment, SQL, routing, catalog, and authentication security tests passed.\n";
 } finally {
     unlink($file);
     putenv($loadedName);
