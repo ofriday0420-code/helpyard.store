@@ -27,6 +27,18 @@ class CatalogRepository
             $parameters['product_type'] = $filters['product_type'];
         }
 
+        if (isset($filters['search'])) {
+            $conditions[] = "(p.name LIKE :search_name ESCAPE '!' "
+                . "OR p.short_description LIKE :search_description ESCAPE '!' "
+                . "OR p.description LIKE :search_long_description ESCAPE '!' "
+                . "OR c.name LIKE :search_category ESCAPE '!')";
+            $search = self::escapeSearchTerm($filters['search']);
+            $parameters['search_name'] = '%' . $search . '%';
+            $parameters['search_description'] = '%' . $search . '%';
+            $parameters['search_long_description'] = '%' . $search . '%';
+            $parameters['search_category'] = '%' . $search . '%';
+        }
+
         $where = implode(' AND ', $conditions);
         $count = $this->connection->prepare(
             'SELECT COUNT(*) FROM products p LEFT JOIN categories c ON c.id = p.category_id WHERE ' . $where
@@ -105,5 +117,10 @@ class CatalogRepository
     public static function productTypes(): array
     {
         return self::PRODUCT_TYPES;
+    }
+
+    public static function escapeSearchTerm(string $term): string
+    {
+        return strtr($term, ['!' => '!!', '%' => '!%', '_' => '!_']);
     }
 }
