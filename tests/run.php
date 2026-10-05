@@ -10,11 +10,13 @@ use Helpyard\App\Controllers\AuthController;
 use Helpyard\App\Controllers\CartController;
 use Helpyard\App\Controllers\CheckoutController;
 use Helpyard\App\Controllers\PaymentController;
+use Helpyard\App\Controllers\AdminFulfillmentController;
 use Helpyard\App\Repositories\CatalogRepository;
 use Helpyard\App\Core\Response;
 use Helpyard\App\Core\Router;
 use Helpyard\App\Core\SessionSecurity;
 use Helpyard\App\Services\SSLCommerzGateway;
+use Helpyard\App\Services\FulfillmentPolicy;
 
 $file = tempnam(sys_get_temp_dir(), 'helpyard-env-');
 if ($file === false) {
@@ -54,6 +56,26 @@ try {
         $migrationContents = file_get_contents($migrationFile);
         if ($migrationContents === false || SqlScript::statements($migrationContents) === []) {
             throw new RuntimeException('A database migration is empty or invalid: ' . basename($migrationFile));
+        }
+        if (FulfillmentPolicy::nextStatus('paid', 'start_processing') !== 'processing'
+            || FulfillmentPolicy::nextStatus('processing', 'mark_shipped') !== 'shipped'
+            || FulfillmentPolicy::nextStatus('shipped', 'mark_delivered') !== 'delivered'
+            || FulfillmentPolicy::nextStatus('payment_pending', 'start_processing') !== null
+            || FulfillmentPolicy::nextStatus('delivered', 'mark_shipped') !== null
+            || FulfillmentPolicy::nextStatus('paid', 'mark_delivered') !== null
+        ) {
+            throw new RuntimeException('Fulfillment order status transitions are not constrained correctly.');
+        }
+        $validShipment = FulfillmentPolicy::validateShipmentDetails('  Example Carrier  ', '  TRACK-123  ');
+        if ($validShipment['carrier'] !== 'Example Carrier' || $validShipment['tracking_number'] !== 'TRACK-123'
+            || $validShipment['error'] !== null
+            || FulfillmentPolicy::validateShipmentDetails('', 'TRACK-123')['error'] === null
+            || FulfillmentPolicy::validateShipmentDetails('Carrier', str_repeat('x', 121))['error'] === null
+            || !FulfillmentPolicy::canShipProductTypes(['physical', 'book'])
+            || FulfillmentPolicy::canShipProductTypes(['physical', 'course'])
+            || FulfillmentPolicy::canShipProductTypes([])
+        ) {
+            throw new RuntimeException('Shipment details or physical fulfillment eligibility were not validated.');
         }
     }
 
@@ -171,8 +193,14 @@ try {
     ))->status() !== 400) {
         throw new RuntimeException('Payment notifications without provider references should be rejected.');
     }
+    if ((new AdminFulfillmentController([]))->index()->status() !== 303) {
+        throw new RuntimeException('The fulfillment console should require an authenticated administrator.');
+    }
     $_SESSION['user_id'] = 123;
     $_SESSION['user_role'] = 'customer';
+    if ((new AdminFulfillmentController([]))->index()->status() !== 403) {
+        throw new RuntimeException('Customer accounts must not access the fulfillment console.');
+    }
     if ((new CheckoutController([]))->createOrder([], new Request(
         ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/checkout'],
         [],
