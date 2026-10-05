@@ -13,6 +13,8 @@ use Helpyard\App\Controllers\PaymentController;
 use Helpyard\App\Controllers\AdminFulfillmentController;
 use Helpyard\App\Controllers\DownloadController;
 use Helpyard\App\Controllers\CourseController;
+use Helpyard\App\Controllers\AdminFileController;
+use Helpyard\App\Controllers\AdminCatalogController;
 use Helpyard\App\Repositories\CatalogRepository;
 use Helpyard\App\Core\Response;
 use Helpyard\App\Core\Router;
@@ -20,6 +22,8 @@ use Helpyard\App\Core\SessionSecurity;
 use Helpyard\App\Services\SSLCommerzGateway;
 use Helpyard\App\Services\FulfillmentPolicy;
 use Helpyard\App\Services\DigitalDeliveryService;
+use Helpyard\App\Services\PrivateFileUploadService;
+use Helpyard\App\Services\AdminCatalogPolicy;
 
 $file = tempnam(sys_get_temp_dir(), 'helpyard-env-');
 if ($file === false) {
@@ -109,6 +113,77 @@ try {
 
     if (CatalogRepository::escapeSearchTerm('100%_ready!') !== '100!%!_ready!!') {
         throw new RuntimeException('Search wildcard characters were not escaped.');
+    }
+    $categoryInput = AdminCatalogPolicy::validateCategory(['name' => 'Digital Courses', 'slug' => '']);
+    if ($categoryInput['error'] !== null
+        || $categoryInput['data'] !== ['name' => 'Digital Courses', 'slug' => 'digital-courses']
+        || AdminCatalogPolicy::validateCategory(['name' => '', 'slug' => 'courses'])['error'] === null
+    ) {
+        throw new RuntimeException('Admin category names and URL slugs were not validated.');
+    }
+    $productInput = AdminCatalogPolicy::validateProduct([
+        'name' => 'Example Course',
+        'slug' => '',
+        'product_type' => 'course',
+        'short_description' => 'Short summary',
+        'description' => "Line one\nLine two",
+        'price' => '12.3',
+        'compare_price' => '15',
+        'stock_quantity' => '0',
+        'category_id' => '',
+        'is_active' => '1',
+    ]);
+    if ($productInput['error'] !== null
+        || $productInput['data']['slug'] !== 'example-course'
+        || $productInput['data']['price'] !== '12.30'
+        || $productInput['data']['compare_price'] !== '15.00'
+        || $productInput['data']['stock_quantity'] !== 0
+        || $productInput['data']['is_active'] !== 1
+        || AdminCatalogPolicy::validateProduct([
+            'name' => 'Bad product',
+            'slug' => 'bad-product',
+            'product_type' => 'course',
+            'price' => '1e2',
+            'compare_price' => '',
+            'stock_quantity' => '0',
+            'category_id' => '',
+        ])['error'] === null
+        || AdminCatalogPolicy::validateProduct([
+            'name' => 'Bad sale',
+            'slug' => 'bad-sale',
+            'product_type' => 'book',
+            'price' => '20.00',
+            'compare_price' => '20',
+            'stock_quantity' => '0',
+            'category_id' => '',
+        ])['error'] === null
+        || AdminCatalogPolicy::validateStock('-1') !== null
+        || AdminCatalogPolicy::validateStock('1.5') !== null
+        || AdminCatalogPolicy::validateStock('0') !== 0
+    ) {
+        throw new RuntimeException('Admin product pricing, inventory, or type validation failed.');
+    }
+    if (PrivateFileUploadService::validateMetadata('lesson.PDF', 1024, UPLOAD_ERR_OK, 'application/pdf')['error'] !== null
+        || PrivateFileUploadService::validateMetadata('archive.zip', 1024, UPLOAD_ERR_OK, 'text/html')['error'] === null
+        || PrivateFileUploadService::validateMetadata('payload.exe', 1024, UPLOAD_ERR_OK, 'application/octet-stream')['error'] === null
+        || PrivateFileUploadService::validateMetadata(
+            'oversized.pdf',
+            PrivateFileUploadService::MAX_FILE_SIZE + 1,
+            UPLOAD_ERR_OK,
+            'application/pdf'
+        )['error'] === null
+        || PrivateFileUploadService::validateMetadata('', 0, UPLOAD_ERR_NO_FILE, '')['error'] === null
+    ) {
+        throw new RuntimeException('Private file upload size, type, or upload errors were not validated.');
+    }
+    $requestWithFiles = new Request(
+        ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/admin/files'],
+        [],
+        [],
+        ['asset' => ['name' => 'lesson.pdf']]
+    );
+    if (($requestWithFiles->files()['asset']['name'] ?? null) !== 'lesson.pdf') {
+        throw new RuntimeException('Uploaded file data was not exposed through the request object.');
     }
 
     $privateRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'helpyard-private-' . bin2hex(random_bytes(6));
@@ -267,6 +342,12 @@ try {
     if ((new AdminFulfillmentController([]))->index()->status() !== 303) {
         throw new RuntimeException('The fulfillment console should require an authenticated administrator.');
     }
+    if ((new AdminFileController([], sys_get_temp_dir()))->index()->status() !== 303) {
+        throw new RuntimeException('The private file manager should require an authenticated administrator.');
+    }
+    if ((new AdminCatalogController([]))->index()->status() !== 303) {
+        throw new RuntimeException('Catalog administration should require an authenticated administrator.');
+    }
     if ((new DownloadController([], sys_get_temp_dir()))->index()->status() !== 303) {
         throw new RuntimeException('The customer downloads page should require authentication.');
     }
@@ -280,6 +361,63 @@ try {
     if ((new AdminFulfillmentController([]))->index()->status() !== 403) {
         throw new RuntimeException('Customer accounts must not access the fulfillment console.');
     }
+    $adminFiles = new AdminFileController([], sys_get_temp_dir());
+    if ($adminFiles->index()->status() !== 403
+        || $adminFiles->upload([], new Request(
+            ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/admin/files'],
+            [],
+            ['csrf_token' => 'invalid-token', 'product_id' => '1']
+        ))->status() !== 403
+    ) {
+        throw new RuntimeException('Customer accounts must not access private file administration.');
+    }
+    $adminCatalog = new AdminCatalogController([]);
+    if ($adminCatalog->index()->status() !== 403
+        || $adminCatalog->createCategory([], new Request(
+            ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/admin/catalog/categories'],
+            [],
+            ['csrf_token' => 'invalid-token', 'name' => 'New category']
+        ))->status() !== 403
+    ) {
+        throw new RuntimeException('Customer accounts must not access catalog administration.');
+    }
+    $_SESSION['user_role'] = 'admin';
+    if ($adminFiles->upload([], new Request(
+        ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/admin/files'],
+        [],
+        ['csrf_token' => 'invalid-token', 'product_id' => '1']
+    ))->status() !== 400) {
+        throw new RuntimeException('Private file uploads without a valid CSRF token should be rejected.');
+    }
+    if ($adminFiles->revoke(['id' => '1'], new Request(
+        ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/admin/files/1/revoke'],
+        [],
+        ['csrf_token' => 'invalid-token']
+    ))->status() !== 400) {
+        throw new RuntimeException('Private file revocation without a valid CSRF token should be rejected.');
+    }
+    if ($adminCatalog->createProduct([], new Request(
+        ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/admin/catalog/products'],
+        [],
+        ['csrf_token' => 'invalid-token']
+    ))->status() !== 400
+        || $adminCatalog->updateCategory(['id' => '1'], new Request(
+            ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/admin/catalog/categories/1'],
+            [],
+            ['csrf_token' => 'invalid-token']
+        ))->status() !== 400
+    ) {
+        throw new RuntimeException('Catalog mutations without a valid CSRF token should be rejected.');
+    }
+    $adminCsrfToken = SessionSecurity::csrfToken();
+    if ($adminCatalog->createProduct([], new Request(
+        ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/admin/catalog/products'],
+        [],
+        ['csrf_token' => $adminCsrfToken]
+    ))->status() !== 303 || ($_SESSION['admin_catalog_error'] ?? '') === '') {
+        throw new RuntimeException('Invalid catalog form data should be rejected before accessing the database.');
+    }
+    $_SESSION['user_role'] = 'customer';
     if ((new DownloadController([], sys_get_temp_dir()))->download(['id' => '../other'], new Request(
         ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/account/downloads/invalid']
     ))->status() !== 404) {
@@ -337,7 +475,7 @@ try {
         }
     }
 
-    echo "Environment, SQL, routing, catalog, cart, payment, fulfillment, protected download, and authentication tests passed.\n";
+    echo "Environment, SQL, routing, catalog, cart, payment, fulfillment, private file administration, protected download, and authentication tests passed.\n";
 } finally {
     unlink($file);
     putenv($loadedName);
