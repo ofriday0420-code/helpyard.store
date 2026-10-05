@@ -20,10 +20,14 @@ The engineering foundation and initial commerce flows are implemented. Checkout,
 - Audited product/category management and simple/variant inventory controls
 - Scheduled reservation cleanup command and customer recent-order history
 
-### Planned next phases
-1. Admin course/order management and payment-review operations
-2. Software licensing, fulfillment notifications, and account recovery
-3. Audit logging, integration coverage, deployment, and production hardening
+### Next roadmap gate
+Gate 0 is the current priority: approve the proposed product and operating decisions, review the responsive sitemap/wireframes, and prove clean MySQL migrations and integration tests in CI before expanding the feature set. The decision register and clickable draft are in `docs/gate-0/`. The draft is not owner approval.
+
+GitHub Actions (`.github/workflows/ci.yml`) provisions MySQL 8.4 and PHP 8.3 with `pdo_mysql`, `fileinfo`, and `pcntl`, applies migrations to a fresh database, seeds the catalog/course data, checks that migrations are repeatable, and runs `tests/mysql_integration.php` plus the local policy suite. The database integration suite exercises competing checkouts against one available unit, server-side order snapshots, cart clearing, expired-reservation restoration, risky/late/repeated payment validation, and rejected failed/amount/currency callback data. The Windows PHP CLI lacks `pdo_mysql` and Docker; a disposable WSL MariaDB 11.8 integration run has passed earlier, but the expanded suite and MySQL 8.4 workflow still require local/hosted runs. Passing the local policy suite alone does not satisfy the database integration gate.
+
+The database integration test creates fixture users, orders, payments, entitlements, lessons, and shipments. Run it only after migrations and seeders against an isolated database whose name ends in `_test`; it refuses other database names.
+
+After Gate 0 is signed off, continue in the v2 roadmap order: verify/stabilize payment, checkout, stock, and download flows; close admin order/payment-review work; then progress through design-system, commerce, fulfillment, growth/quality, hardening, and deployment gates. PWA and native work remain deferred until API v1 is stable and documented.
 
 ## Quick start
 
@@ -61,6 +65,7 @@ On Windows, run `php --ini` to find the active `php.ini`. If `pdo_mysql` or `fil
 - Hosted payment uses SSLCOMMERZ in BDT. It remains disabled unless `SSLCOMMERZ_STORE_ID` and `SSLCOMMERZ_STORE_PASSWORD` are configured; sandbox mode defaults on. Before live use, set real merchant credentials, set `SSLCOMMERZ_SANDBOX=false`, set `APP_URL` to the public HTTPS site, configure the SSLCOMMERZ IPN URL as `/payments/ipn`, run migrations, and complete sandbox and production verification. Both browser returns and IPNs are verified against the provider's server-side validation API before an order is marked paid. Risky, late, or duplicate verified payments are placed into `payment_review` for manual reconciliation. See the [SSLCOMMERZ Hosted Payment API documentation](https://developer.sslcommerz.com/doc/v4/).
 - Customer account holders can update their display name and manage their own saved addresses. Address writes require CSRF tokens; ownership is enforced in every address query, and setting a default address replaces the previous default for that customer.
 - MySQL DDL statements are not fully transactional. If a migration fails partway, inspect the database before retrying; current schema statements use `CREATE TABLE IF NOT EXISTS` for safe reruns. Migration 010 snapshots product types and adds shipment/event records; migration 011 adds private file metadata and paid-order entitlements; migration 012 adds courses, lessons, paid enrollments, and progress; migration 013 adds administrator audit records; migration 014 adds category storefront visibility. Verify all migrations and order, download, catalog administration, file administration, and course flows against MySQL/MariaDB before production use.
+- Gate 0 review materials: `docs/gate-0/decision-register.md` records proposed defaults that require owner approval, and `docs/gate-0/sitemap-and-wireframes.html` provides a responsive, clickable low-fidelity draft. These are review artefacts, not signed requirements or an approved design.
 
 ## Related source
 
