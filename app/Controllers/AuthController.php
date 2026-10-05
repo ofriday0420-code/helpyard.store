@@ -6,6 +6,7 @@ use Helpyard\App\Core\Database;
 use Helpyard\App\Core\Request;
 use Helpyard\App\Core\Response;
 use Helpyard\App\Core\SessionSecurity;
+use Helpyard\App\Repositories\OrderRepository;
 use Helpyard\App\Repositories\UserRepository;
 use PDOException;
 use RuntimeException;
@@ -177,8 +178,8 @@ class AuthController
         }
 
         try {
-            $user = (new UserRepository(Database::connect($this->databaseConfig)))
-                ->findCustomerById((int) $_SESSION['user_id']);
+            $connection = Database::connect($this->databaseConfig);
+            $user = (new UserRepository($connection))->findCustomerById((int) $_SESSION['user_id']);
         } catch (PDOException | RuntimeException $exception) {
             return $this->unavailable($exception);
         }
@@ -190,8 +191,16 @@ class AuthController
             return $this->redirect('/login');
         }
 
+        try {
+            (new OrderRepository($connection))->releaseExpiredReservations();
+            $orders = (new OrderRepository($connection))->forCustomer((int) $_SESSION['user_id']);
+        } catch (PDOException | RuntimeException $exception) {
+            return $this->unavailable($exception);
+        }
+
         return $this->render('auth/account.php', [
             'user' => $user,
+            'orders' => $orders,
             'csrfToken' => SessionSecurity::csrfToken(),
             'notice' => $this->consumeFlash('account_notice'),
             'error' => $this->consumeFlash('account_error'),
