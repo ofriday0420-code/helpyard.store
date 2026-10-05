@@ -20,11 +20,15 @@ through public URLs.
      customer access to the admin queue are rejected; customers see shipment
      data only for their own order.
 
-2. **Protected digital delivery**
+2. **Protected digital delivery (starting now)**
    - Define private file metadata/storage and paid-order entitlements.
    - Add an authorization-checked download endpoint with expiring/revocable
      access; never expose private files through `public/`.
    - Acceptance: unpaid, expired, and cross-customer downloads are denied.
+   - First slice now implemented: private file metadata, paid-order entitlement
+     creation, customer-owned download list, private-root path validation, and
+     attachment streaming. Operator-managed file upload/admin UI and download
+     expiry/usage limits remain follow-up work.
 
 3. **Course fulfillment**
    - Add enrollment and lesson-access records tied to verified paid orders.
