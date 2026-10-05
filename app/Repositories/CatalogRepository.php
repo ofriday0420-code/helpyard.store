@@ -48,7 +48,9 @@ class CatalogRepository
 
         $products = $this->connection->prepare(
             'SELECT p.id, p.name, p.slug, p.product_type, p.short_description, p.price, p.compare_price, '
-            . 'p.stock_quantity, c.name AS category_name, c.slug AS category_slug '
+            . 'p.stock_quantity, EXISTS(SELECT 1 FROM product_variants pv '
+            . 'WHERE pv.product_id = p.id AND pv.is_active = 1) AS has_variants, '
+            . 'c.name AS category_name, c.slug AS category_slug '
             . 'FROM products p LEFT JOIN categories c ON c.id = p.category_id '
             . 'WHERE ' . $where . ' ORDER BY p.id DESC LIMIT :limit OFFSET :offset'
         );
