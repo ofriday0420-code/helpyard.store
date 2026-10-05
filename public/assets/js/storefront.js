@@ -27,7 +27,7 @@
         }
     };
 
-    const productCard = (product) => {
+    const productCard = (product, csrfToken) => {
         const name = escapeHtml(product.name || 'Product');
         const slug = encodeURIComponent(String(product.slug || ''));
         const image = Array.isArray(product.images) ? product.images[0] : null;
@@ -45,7 +45,13 @@
                 <h3 class="product-name"><a href="/product/${slug}">${name}</a></h3>
                 <p class="product-short">${escapeHtml(product.short_description || '')}</p>
                 <p class="product-price">${formatPrice(product.price)}</p>
-                <p class="product-stock">${Number(product.stock_quantity) > 0 ? 'Available' : 'Availability shown at checkout'}</p>
+                <p class="product-stock">${Number(product.has_variants) === 1 ? 'Choose an option to check availability' : Number(product.stock_quantity) > 0 ? 'Available' : 'Currently unavailable'}</p>
+                ${Number(product.stock_quantity) > 0 && Number(product.has_variants) !== 1 ? `<form class="product-add-form" action="/cart/items" method="post">
+                    <input type="hidden" name="csrf_token" value="${escapeHtml(csrfToken || '')}">
+                    <input type="hidden" name="product_id" value="${Number(product.id)}">
+                    <input type="hidden" name="quantity" value="1">
+                    <button class="button button-primary" type="submit">Add to cart</button>
+                </form>` : Number(product.has_variants) === 1 ? `<a class="button button-secondary" href="/product/${slug}">Choose options</a>` : ''}
             </div>
         </article>`;
     };
@@ -89,7 +95,7 @@
             if (products.length === 0) {
                 showMessage(container, 'No products are listed here yet. Please check back soon.');
             } else {
-                container.innerHTML = products.map(productCard).join('');
+                container.innerHTML = products.map((product) => productCard(product, container.dataset.csrf)).join('');
             }
             if (toolbar) toolbar.textContent = `${products.length} product${products.length === 1 ? '' : 's'} · ${currentPage} of ${totalPages}`;
         };
@@ -179,6 +185,16 @@
                     return `<li class="variant-option"><strong>${escapeHtml(variant.name)}</strong><span>${attributes}${variant.price_override ? ` · ${formatPrice(variant.price_override)}` : ''}</span></li>`;
                 }).join('')}</ul></section>`
                 : '';
+            const hasAvailableStock = Array.isArray(product.variants) && product.variants.length
+                ? product.variants.some((variant) => Number(variant.stock_quantity) > 0)
+                : Number(product.stock_quantity) > 0;
+            const variantSelector = Array.isArray(product.variants) && product.variants.length
+                ? `<label for="product-variant">Choose an option</label>
+                    <select id="product-variant" name="variant_id" form="add-product-form" required>
+                        <option value="">Select an option</option>
+                        ${product.variants.map((variant) => `<option value="${Number(variant.id)}" data-stock="${Number(variant.stock_quantity)}" data-price="${escapeHtml(variant.price_override ?? product.price)}" ${Number(variant.stock_quantity) < 1 ? 'disabled' : ''}>${escapeHtml(variant.name)} — ${formatPrice(variant.price_override ?? product.price)}${Number(variant.stock_quantity) < 1 ? ' (out of stock)' : ''}</option>`).join('')}
+                    </select>`
+                : '';
 
             detail.innerHTML = `<div class="detail-gallery">
                     <div class="detail-main-image">${gallery}</div>
@@ -187,14 +203,22 @@
                 <div class="detail-copy">
                     <p class="detail-category">${escapeHtml(product.category_name || product.product_type || 'Product')}</p>
                     <h1 class="detail-title">${escapeHtml(product.name)}</h1>
-                    <p class="detail-price">${formatPrice(product.price)}</p>
+                    <p class="detail-price" data-base-price="${escapeHtml(product.price)}">${formatPrice(product.price)}</p>
                     <p class="detail-description">${escapeHtml(product.description || product.short_description || 'Product details will be available soon.')}</p>
                     <ul class="detail-meta">
                         <li>Product type:<strong>${escapeHtml(product.product_type || 'General')}</strong></li>
-                        <li>Availability:<strong>${Number(product.stock_quantity) > 0 ? 'In stock' : 'Check availability'}</strong></li>
+                        <li>Availability:<strong>${hasAvailableStock ? 'In stock' : 'Currently unavailable'}</strong></li>
                     </ul>
                     ${variants}
-                    <p class="detail-note">Checkout and ordering are not available yet. Product availability and final order details will be confirmed when those features are implemented.</p>
+                    ${hasAvailableStock ? `<form id="add-product-form" class="detail-add-form" action="/cart/items" method="post">
+                        <input type="hidden" name="csrf_token" value="${escapeHtml(detail.dataset.csrf || '')}">
+                        <input type="hidden" name="product_id" value="${Number(product.id)}">
+                        ${variantSelector}
+                        <label for="product-quantity">Quantity</label>
+                        <input id="product-quantity" name="quantity" type="number" min="1" max="${Math.min(99, Number(product.stock_quantity))}" value="1" required>
+                        <button class="button button-primary" type="submit">Add to cart</button>
+                    </form>` : '<p class="detail-note">This product is currently unavailable.</p>'}
+                    <p class="detail-note">Checkout and payment are the next step. Adding a product does not create an order or charge you.</p>
                 </div>`;
         };
 
@@ -206,6 +230,17 @@
             mainImage.src = button.dataset.image;
             mainImage.alt = button.dataset.alt || '';
             detail.querySelectorAll('[data-image]').forEach((thumbnail) => thumbnail.setAttribute('aria-pressed', String(thumbnail === button)));
+        });
+
+        detail.addEventListener('change', (event) => {
+            if (!event.target.matches('#product-variant')) return;
+            const quantity = detail.querySelector('#product-quantity');
+            const price = detail.querySelector('.detail-price');
+            const selected = event.target.selectedOptions[0];
+            const stock = Number(selected.dataset.stock || 0);
+            quantity.max = String(Math.min(99, stock || 99));
+            quantity.value = '1';
+            if (price) price.textContent = formatPrice(selected.value ? selected.dataset.price : price.dataset.basePrice);
         });
 
         fetchJson(detail.dataset.api)
