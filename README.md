@@ -31,7 +31,7 @@ This is the first delivery milestone in the plan: engineering foundation and a w
 4. From the project root, run `php database/migrate.php`, then `php database/seed.php`.
 5. Run the foundation checks with `php tests/run.php`.
 6. Start the server with `php -S 127.0.0.1:8000 -t public`.
-7. Visit `http://127.0.0.1:8000/` for the storefront, `/courses`, `/websites`, `/software`, `/books`, or `/devices` for the five sections, and `/product/business-website-starter` for a product page. The API is available at `/api/v1/products`, `/api/v1/products/{slug}`, and `/api/v1/categories`.
+7. Visit `http://127.0.0.1:8000/` for the storefront, `/courses`, `/websites`, `/software`, `/books`, or `/devices` for the five sections, `/product/business-website-starter` for a product page, and `/cart` to manage the current browser session's cart. The API is available at `/api/v1/products`, `/api/v1/products/{slug}`, and `/api/v1/categories`.
 8. Customer accounts are available at `/register`, `/login`, `/account`, and `/account/addresses`.
 
 On Windows, run `php --ini` to find the active `php.ini`. If `pdo_mysql` is not listed by `php -m`, enable `extension=pdo_mysql` in that configuration, ensure `extension_dir` points to PHP's `ext` directory, restart the terminal, and verify `php -m` lists `pdo_mysql`.
@@ -46,6 +46,7 @@ On Windows, run `php --ini` to find the active `php.ini`. If `pdo_mysql` is not 
 - `.env` supports one `NAME=value` entry per line, with optional matching single or double quotes around values. Do not commit real secrets.
 - Migrations are tracked in `schema_migrations`; applied migration files must not be edited. Add a new numbered SQL migration for schema changes.
 - The first authentication slice provides customer registration, login, logout, CSRF-protected forms, session rotation, login throttling, and a protected account page. Email verification and password-reset delivery are not yet enabled because no email provider is configured.
+- The cart is database-backed and associated with a random key held in the server-side session. Product and variant prices and stock are read from the database; add/update/remove forms require CSRF tokens, and requested quantities are capped at 99 and checked against availability. Checkout, order creation, payment, and guest-cart/account-cart merging are not yet implemented.
 - Customer account holders can update their display name and manage their own saved addresses. Address writes require CSRF tokens; ownership is enforced in every address query, and setting a default address replaces the previous default for that customer.
 - MySQL DDL statements are not fully transactional. If a migration fails partway, inspect the database before retrying; current schema statements use `CREATE TABLE IF NOT EXISTS` for safe reruns.
 
