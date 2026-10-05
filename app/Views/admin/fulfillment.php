@@ -8,6 +8,7 @@
         <h1>Physical order fulfillment</h1>
         <p>Only paid orders containing physical products or books appear here.</p>
         <div class="admin-actions">
+            <a class="button button-secondary" href="/admin/orders">Order administration</a>
             <a class="button button-secondary" href="/admin/catalog">Manage catalog</a>
             <a class="button button-secondary" href="/admin/files">Manage private product files</a>
         </div>
