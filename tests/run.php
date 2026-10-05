@@ -12,6 +12,7 @@ use Helpyard\App\Controllers\CheckoutController;
 use Helpyard\App\Controllers\PaymentController;
 use Helpyard\App\Controllers\AdminFulfillmentController;
 use Helpyard\App\Controllers\DownloadController;
+use Helpyard\App\Controllers\CourseController;
 use Helpyard\App\Repositories\CatalogRepository;
 use Helpyard\App\Core\Response;
 use Helpyard\App\Core\Router;
@@ -269,6 +270,11 @@ try {
     if ((new DownloadController([], sys_get_temp_dir()))->index()->status() !== 303) {
         throw new RuntimeException('The customer downloads page should require authentication.');
     }
+    if ((new CourseController([]))->index()->status() !== 303
+        || (new CourseController([]))->show(['id' => '1'])->status() !== 303
+    ) {
+        throw new RuntimeException('Customer course pages should require authentication.');
+    }
     $_SESSION['user_id'] = 123;
     $_SESSION['user_role'] = 'customer';
     if ((new AdminFulfillmentController([]))->index()->status() !== 403) {
@@ -278,6 +284,9 @@ try {
         ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/account/downloads/invalid']
     ))->status() !== 404) {
         throw new RuntimeException('Invalid download entitlement identifiers should be rejected.');
+    }
+    if ((new CourseController([]))->show(['id' => 'not-an-id'])->status() !== 404) {
+        throw new RuntimeException('Invalid course identifiers should be rejected.');
     }
     if ((new CheckoutController([]))->createOrder([], new Request(
         ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/checkout'],
