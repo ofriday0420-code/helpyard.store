@@ -67,6 +67,58 @@ class AdminOrderRepository
         $shipmentDetails = $shipment->fetch();
         $order['shipment'] = $shipmentDetails === false ? null : $shipmentDetails;
 
+        $notes = $this->connection->prepare(
+            'SELECT orn.note, orn.created_at, u.name AS author_name, u.email AS author_email '
+            . 'FROM order_review_notes orn JOIN users u ON u.id = orn.author_user_id '
+            . 'WHERE orn.order_id = :order_id ORDER BY orn.id DESC'
+        );
+        $notes->execute(['order_id' => $orderId]);
+        $order['review_notes'] = $notes->fetchAll();
+
         return $order;
+    }
+
+    public function addReviewNote(int $orderId, int $adminId, string $note): bool
+    {
+        $this->connection->beginTransaction();
+        try {
+            $orderLookup = $this->connection->prepare('SELECT id FROM orders WHERE id = :order_id FOR UPDATE');
+            $orderLookup->execute(['order_id' => $orderId]);
+            if ($orderLookup->fetchColumn() === false) {
+                $this->connection->rollBack();
+                return false;
+            }
+
+            $insert = $this->connection->prepare(
+                'INSERT INTO order_review_notes (order_id, author_user_id, note) '
+                . 'VALUES (:order_id, :author_user_id, :note)'
+            );
+            $insert->execute([
+                'order_id' => $orderId,
+                'author_user_id' => $adminId,
+                'note' => $note,
+            ]);
+            $noteId = (int) $this->connection->lastInsertId();
+
+            $audit = $this->connection->prepare(
+                'INSERT INTO admin_audit_logs (actor_user_id, action, subject_type, subject_id, details) '
+                . 'VALUES (:actor_user_id, :action, :subject_type, :subject_id, :details)'
+            );
+            $audit->execute([
+                'actor_user_id' => $adminId,
+                'action' => 'order.review_note_added',
+                'subject_type' => 'order',
+                'subject_id' => $orderId,
+                'details' => json_encode(['note_id' => $noteId], JSON_THROW_ON_ERROR),
+            ]);
+
+            $this->connection->commit();
+            return true;
+        } catch (\Throwable $exception) {
+            if ($this->connection->inTransaction()) {
+                $this->connection->rollBack();
+            }
+            throw $exception;
+        }
     }
 }
