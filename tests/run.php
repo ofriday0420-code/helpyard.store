@@ -11,12 +11,14 @@ use Helpyard\App\Controllers\CartController;
 use Helpyard\App\Controllers\CheckoutController;
 use Helpyard\App\Controllers\PaymentController;
 use Helpyard\App\Controllers\AdminFulfillmentController;
+use Helpyard\App\Controllers\DownloadController;
 use Helpyard\App\Repositories\CatalogRepository;
 use Helpyard\App\Core\Response;
 use Helpyard\App\Core\Router;
 use Helpyard\App\Core\SessionSecurity;
 use Helpyard\App\Services\SSLCommerzGateway;
 use Helpyard\App\Services\FulfillmentPolicy;
+use Helpyard\App\Services\DigitalDeliveryService;
 
 $file = tempnam(sys_get_temp_dir(), 'helpyard-env-');
 if ($file === false) {
@@ -108,6 +110,74 @@ try {
         throw new RuntimeException('Search wildcard characters were not escaped.');
     }
 
+    $privateRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'helpyard-private-' . bin2hex(random_bytes(6));
+    if (!mkdir($privateRoot) || !file_put_contents($privateRoot . DIRECTORY_SEPARATOR . 'sample.zip', 'private-test-content')) {
+        throw new RuntimeException('Could not prepare temporary private download test storage.');
+    }
+    try {
+        $privatePath = DigitalDeliveryService::resolvePrivateFile(
+            $privateRoot,
+            'sample.zip',
+            dirname(__DIR__) . DIRECTORY_SEPARATOR . 'public'
+        );
+        if (file_get_contents($privatePath) !== 'private-test-content'
+            || DigitalDeliveryService::safeDownloadName('..\\release.zip') !== 'release.zip'
+            || DigitalDeliveryService::safeDownloadName("safe.zip\r\nX-Test: injected") !== 'safe.zipX-Test: injected'
+        ) {
+            throw new RuntimeException('Private download resolution or filename normalization failed.');
+        }
+        foreach (['../outside.zip', 'nested/../../outside.zip', 'C:\\outside.zip', '/outside.zip'] as $invalidKey) {
+            try {
+                DigitalDeliveryService::resolvePrivateFile(
+                    $privateRoot,
+                    $invalidKey,
+                    dirname(__DIR__) . DIRECTORY_SEPARATOR . 'public'
+                );
+                throw new RuntimeException('A private download path traversal was accepted.');
+            } catch (RuntimeException $exception) {
+                if ($exception->getMessage() === 'A private download path traversal was accepted.') {
+                    throw $exception;
+                }
+            }
+        }
+        try {
+            DigitalDeliveryService::resolvePrivateFile(
+                dirname(__DIR__) . DIRECTORY_SEPARATOR . 'public',
+                'index.php',
+                dirname(__DIR__) . DIRECTORY_SEPARATOR . 'public'
+            );
+            throw new RuntimeException('A public directory was accepted as private download storage.');
+        } catch (RuntimeException $exception) {
+            if ($exception->getMessage() === 'A public directory was accepted as private download storage.') {
+                throw $exception;
+            }
+        }
+        try {
+            DigitalDeliveryService::resolvePrivateFile(
+                dirname(__DIR__),
+                'public/index.php',
+                dirname(__DIR__) . DIRECTORY_SEPARATOR . 'public'
+            );
+            throw new RuntimeException('A file under the public web root was accepted as a private download.');
+        } catch (RuntimeException $exception) {
+            if ($exception->getMessage() === 'A file under the public web root was accepted as a private download.') {
+                throw $exception;
+            }
+        }
+        $streamedResponse = new Response(200, [], static function (): void {
+            echo 'streamed-content';
+        });
+        ob_start();
+        $streamedResponse->send();
+        $streamedBody = ob_get_clean();
+        if ($streamedBody !== 'streamed-content') {
+            throw new RuntimeException('Streaming responses did not emit their body.');
+        }
+    } finally {
+        unlink($privateRoot . DIRECTORY_SEPARATOR . 'sample.zip');
+        rmdir($privateRoot);
+    }
+
     if (CartController::positiveInteger('1', 99) !== 1
         || CartController::positiveInteger('99', 99) !== 99
         || CartController::positiveInteger('0', 99) !== null
@@ -196,10 +266,18 @@ try {
     if ((new AdminFulfillmentController([]))->index()->status() !== 303) {
         throw new RuntimeException('The fulfillment console should require an authenticated administrator.');
     }
+    if ((new DownloadController([], sys_get_temp_dir()))->index()->status() !== 303) {
+        throw new RuntimeException('The customer downloads page should require authentication.');
+    }
     $_SESSION['user_id'] = 123;
     $_SESSION['user_role'] = 'customer';
     if ((new AdminFulfillmentController([]))->index()->status() !== 403) {
         throw new RuntimeException('Customer accounts must not access the fulfillment console.');
+    }
+    if ((new DownloadController([], sys_get_temp_dir()))->download(['id' => '../other'], new Request(
+        ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/account/downloads/invalid']
+    ))->status() !== 404) {
+        throw new RuntimeException('Invalid download entitlement identifiers should be rejected.');
     }
     if ((new CheckoutController([]))->createOrder([], new Request(
         ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/checkout'],
@@ -240,7 +318,7 @@ try {
         }
     }
 
-    echo "Environment, SQL, routing, catalog, cart, payment validation, and authentication tests passed.\n";
+    echo "Environment, SQL, routing, catalog, cart, payment, fulfillment, protected download, and authentication tests passed.\n";
 } finally {
     unlink($file);
     putenv($loadedName);
