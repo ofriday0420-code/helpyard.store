@@ -37,13 +37,10 @@ class OrderRepository
             }
 
             $itemsQuery = $this->connection->prepare(
-                'SELECT ci.id AS cart_item_id, ci.quantity, p.id AS product_id, p.name AS product_name, '
+                'SELECT ci.id AS cart_item_id, ci.quantity, ci.product_variant_id AS selected_variant_id, '
+                . 'p.id AS product_id, p.name AS product_name, '
                 . 'p.price AS product_price, p.stock_quantity AS product_stock, p.is_active AS product_active, '
-                . 'pv.id AS variant_id, pv.name AS variant_name, pv.price_override, pv.stock_quantity AS variant_stock, '
-                . 'pv.is_active AS variant_active '
                 . 'FROM cart_items ci JOIN products p ON p.id = ci.product_id '
-                . 'LEFT JOIN product_variants pv ON pv.id = ci.product_variant_id '
-                . 'AND pv.product_id = p.id '
                 . 'WHERE ci.cart_id = :cart_id ORDER BY ci.id ASC FOR UPDATE'
             );
             $itemsQuery->execute(['cart_id' => $cartId]);
@@ -54,6 +51,10 @@ class OrderRepository
 
             $variantCount = $this->connection->prepare(
                 'SELECT COUNT(*) FROM product_variants WHERE product_id = :product_id AND is_active = 1'
+            );
+            $variantQuery = $this->connection->prepare(
+                'SELECT id, name, price_override, stock_quantity, is_active FROM product_variants '
+                . 'WHERE id = :variant_id AND product_id = :product_id FOR UPDATE'
             );
             $decreaseProductStock = $this->connection->prepare(
                 'UPDATE products SET stock_quantity = stock_quantity - :quantity '
@@ -72,15 +73,22 @@ class OrderRepository
                     throw new CheckoutException('A product in your cart is no longer available. Please update your cart.');
                 }
 
-                if ($item['variant_id'] !== null) {
-                    if ((int) $item['variant_active'] !== 1 || (int) $item['variant_stock'] < $quantity) {
+                if ($item['selected_variant_id'] !== null) {
+                    $variantQuery->execute([
+                        'variant_id' => $item['selected_variant_id'],
+                        'product_id' => $item['product_id'],
+                    ]);
+                    $variant = $variantQuery->fetch();
+                    if ($variant === false || (int) $variant['is_active'] !== 1
+                        || (int) $variant['stock_quantity'] < $quantity
+                    ) {
                         throw new CheckoutException('A product option in your cart no longer has enough stock.');
                     }
-                    $price = $item['price_override'] ?? $item['product_price'];
-                    $variantName = $item['variant_name'];
+                    $price = $variant['price_override'] ?? $item['product_price'];
+                    $variantName = $variant['name'];
                     $decreaseVariantStock->execute([
                         'quantity' => $quantity,
-                        'variant_id' => $item['variant_id'],
+                        'variant_id' => $variant['id'],
                         'product_id' => $item['product_id'],
                         'available_quantity' => $quantity,
                     ]);
@@ -110,7 +118,7 @@ class OrderRepository
                 $pricedItems[] = [
                     'product_id' => (int) $item['product_id'],
                     'product_name' => $item['product_name'],
-                    'variant_id' => $item['variant_id'] === null ? null : (int) $item['variant_id'],
+                    'variant_id' => $item['selected_variant_id'] === null ? null : (int) $item['selected_variant_id'],
                     'variant_name' => $variantName,
                     'quantity' => $quantity,
                     'unit_price' => $price,
@@ -196,7 +204,7 @@ class OrderRepository
         }
 
         $itemsQuery = $this->connection->prepare(
-            'SELECT product_name, variant_name, quantity, unit_price '
+            'SELECT product_name, variant_name, quantity, unit_price, quantity * unit_price AS line_total '
             . 'FROM order_items WHERE order_id = :order_id ORDER BY id ASC'
         );
         $itemsQuery->execute(['order_id' => $orderId]);
@@ -205,14 +213,31 @@ class OrderRepository
         return $order;
     }
 
-    public function releaseExpiredReservations(): int
+    public function forCustomer(int $userId, int $limit = 50): array
+    {
+        $statement = $this->connection->prepare(
+            'SELECT id, order_number, status, final_total, created_at '
+            . 'FROM orders WHERE user_id = :user_id ORDER BY id DESC LIMIT :limit'
+        );
+        $statement->bindValue(':user_id', $userId, PDO::PARAM_INT);
+        $statement->bindValue(':limit', max(1, min($limit, 100)), PDO::PARAM_INT);
+        $statement->execute();
+
+        return $statement->fetchAll();
+    }
+
+    public function releaseExpiredReservations(int $limit = 100): int
     {
         $this->connection->beginTransaction();
         try {
-            $ordersQuery = $this->connection->query(
+            $limit = max(1, min($limit, 500));
+            $ordersQuery = $this->connection->prepare(
                 "SELECT id FROM orders WHERE status = 'payment_pending' "
-                . 'AND reservation_expires_at IS NOT NULL AND reservation_expires_at <= UTC_TIMESTAMP() FOR UPDATE'
+                . 'AND reservation_expires_at IS NOT NULL AND reservation_expires_at <= UTC_TIMESTAMP() '
+                . 'ORDER BY id ASC LIMIT :limit FOR UPDATE'
             );
+            $ordersQuery->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $ordersQuery->execute();
             $orders = $ordersQuery->fetchAll(PDO::FETCH_COLUMN);
             if ($orders === []) {
                 $this->connection->commit();
@@ -231,6 +256,10 @@ class OrderRepository
             );
             $cancelOrder = $this->connection->prepare(
                 "UPDATE orders SET status = 'cancelled' WHERE id = :order_id AND status = 'payment_pending'"
+            );
+            $cancelPayments = $this->connection->prepare(
+                "UPDATE payment_transactions SET status = 'cancelled' "
+                . "WHERE order_id = :order_id AND status IN ('initiating', 'pending')"
             );
 
             foreach ($orders as $orderId) {
@@ -251,7 +280,10 @@ class OrderRepository
                             'product_id' => $item['product_id'],
                         ]);
                         if ($restoreVariant->rowCount() !== 1) {
-                            throw new RuntimeException('Could not release an expired product-option reservation.');
+                            error_log(
+                                'Expired order reservation references a missing product option: order '
+                                . $orderId . ', variant ' . $item['product_variant_id']
+                            );
                         }
                     }
                 }
@@ -259,6 +291,7 @@ class OrderRepository
                 if ($cancelOrder->rowCount() !== 1) {
                     throw new RuntimeException('Could not cancel an expired payment reservation.');
                 }
+                $cancelPayments->execute(['order_id' => $orderId]);
             }
 
             $this->connection->commit();
