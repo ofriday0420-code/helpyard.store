@@ -8,6 +8,7 @@ use Helpyard\App\Core\SqlScript;
 use Helpyard\App\Controllers\CatalogController;
 use Helpyard\App\Controllers\AuthController;
 use Helpyard\App\Controllers\CartController;
+use Helpyard\App\Controllers\CheckoutController;
 use Helpyard\App\Repositories\CatalogRepository;
 use Helpyard\App\Core\Response;
 use Helpyard\App\Core\Router;
@@ -119,6 +120,19 @@ try {
     ))->status() !== 400) {
         throw new RuntimeException('Cart mutations without a valid CSRF token should be rejected.');
     }
+    if ((new CheckoutController([]))->show()->status() !== 303) {
+        throw new RuntimeException('Checkout should require a signed-in customer.');
+    }
+    $_SESSION['user_id'] = 123;
+    $_SESSION['user_role'] = 'customer';
+    if ((new CheckoutController([]))->createOrder([], new Request(
+        ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/checkout'],
+        [],
+        ['csrf_token' => 'invalid-token', 'address_id' => '1']
+    ))->status() !== 400) {
+        throw new RuntimeException('Order creation without a valid CSRF token should be rejected.');
+    }
+    unset($_SESSION['user_id'], $_SESSION['user_role']);
 
     $router = new Router();
     $router->get('/products/{slug}', static function (array $params): Response {
