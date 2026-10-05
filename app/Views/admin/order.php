@@ -15,6 +15,8 @@
     <?php if ($order['status'] === 'payment_review'): ?>
         <p class="cart-feedback is-error" role="status">Payment requires manual review. This screen does not change order, payment, inventory, or refund state.</p>
     <?php endif; ?>
+    <?php if ($notice !== ''): ?><p class="cart-feedback" role="status"><?= htmlspecialchars($notice, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p><?php endif; ?>
+    <?php if ($error !== ''): ?><p class="cart-feedback is-error" role="alert"><?= htmlspecialchars($error, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p><?php endif; ?>
     <div class="cart-layout order-layout">
         <section class="order-items" aria-label="Order items and payment records">
             <h2>Items</h2>
@@ -43,8 +45,28 @@
                     </article>
                 <?php endforeach; ?>
             <?php endif; ?>
+            <h2>Review notes</h2>
+            <?php if ($order['review_notes'] === []): ?>
+                <p>No administrator review notes are recorded.</p>
+            <?php else: ?>
+                <?php foreach ($order['review_notes'] as $reviewNote): ?>
+                    <article class="order-item">
+                        <div>
+                            <h3><?= htmlspecialchars($reviewNote['author_name'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></h3>
+                            <p><?= nl2br(htmlspecialchars($reviewNote['note'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')) ?></p>
+                            <p><?= htmlspecialchars($reviewNote['created_at'], ENT_QUOTES, 'UTF-8') ?> UTC · <?= htmlspecialchars($reviewNote['author_email'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p>
+                        </div>
+                    </article>
+                <?php endforeach; ?>
+            <?php endif; ?>
         </section>
         <aside class="cart-summary order-summary">
+            <h2>Add review note</h2>
+            <form class="auth-form" method="post" action="/admin/orders/<?= (int) $order['id'] ?>/notes">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                <label>Internal note <textarea name="note" maxlength="2000" rows="5" required></textarea></label>
+                <button class="button button-primary" type="submit">Record note</button>
+            </form>
             <h2>Customer</h2>
             <p><?= htmlspecialchars($order['customer_name'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p>
             <p><a href="mailto:<?= htmlspecialchars($order['customer_email'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($order['customer_email'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></a></p>
