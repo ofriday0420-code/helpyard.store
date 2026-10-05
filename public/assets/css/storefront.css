@@ -187,6 +187,14 @@ h1, h2, h3 { font-family: "Manrope", Arial, sans-serif; }
 .account-details { padding: 18px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-block: 1px solid var(--line); }
 .account-details span { color: var(--muted); font-size: 12px; }
 .account-details strong { font-size: 12px; }
+.account-orders { display: grid; gap: 13px; }
+.account-orders h2 { margin-bottom: 0; font-size: 21px; }
+.account-order-list { display: grid; gap: 9px; }
+.account-order { padding: 14px; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(110px, 1fr) auto; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 10px; background: white; }
+.account-order > span:first-child { display: grid; gap: 4px; }
+.account-order strong { font-size: 12px; }
+.account-order small, .account-order-state { color: var(--muted); font-size: 11px; text-transform: capitalize; }
+.account-order:hover { border-color: #aebfae; }
 .saved-addresses { display: grid; gap: 12px; }
 .saved-address { padding: 17px; display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; border: 1px solid var(--line); border-radius: 11px; background: #fff; }
 .saved-address strong { font: 700 14px "Manrope", sans-serif; }
@@ -321,6 +329,9 @@ h1, h2, h3 { font-family: "Manrope", Arial, sans-serif; }
     .cart-quantity-form { grid-column: 1; grid-row: 2; }
     .cart-item-total { grid-column: 2; grid-row: 1 / span 2; }
     .order-item { align-items: flex-start; }
+    .account-order { grid-template-columns: minmax(0, 1fr) auto; }
+    .account-order-state { grid-column: 1; }
+    .account-order > strong:last-child { grid-column: 2; grid-row: 1 / span 2; }
 }
 
 @media (max-width: 390px) {
