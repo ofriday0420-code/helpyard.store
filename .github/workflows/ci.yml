@@ -1,0 +1,66 @@
+name: PHP and MySQL CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: helpyard_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    env:
+      APP_ENV: test
+      APP_DEBUG: "false"
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_DATABASE: helpyard_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: fileinfo, pdo_mysql, pcntl
+          coverage: none
+
+      - name: Lint PHP sources
+        run: find app config database public routes tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Run isolated policy and unit tests
+        run: php tests/run.php
+
+      - name: Apply migrations to a clean MySQL database
+        run: php database/migrate.php
+
+      - name: Seed test catalog and course
+        run: php database/seed.php
+
+      - name: Verify migrations are repeatable
+        run: php database/migrate.php
+
+      - name: Verify checkout, payment, access, course, and fulfillment behavior
+        run: php tests/mysql_integration.php
