@@ -288,6 +288,16 @@ try {
     if ((new CourseController([]))->show(['id' => 'not-an-id'])->status() !== 404) {
         throw new RuntimeException('Invalid course identifiers should be rejected.');
     }
+    if ((new CourseController([]))->completeLesson(
+        ['id' => '1', 'lesson_id' => '2'],
+        new Request(
+            ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/account/courses/1/lessons/2/complete'],
+            [],
+            ['csrf_token' => 'invalid-token']
+        )
+    )->status() !== 400) {
+        throw new RuntimeException('Course progress mutations without a valid CSRF token should be rejected.');
+    }
     if ((new CheckoutController([]))->createOrder([], new Request(
         ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/checkout'],
         [],
