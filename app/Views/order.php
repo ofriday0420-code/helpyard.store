@@ -7,7 +7,7 @@
         <p class="eyebrow">Order status: <?= htmlspecialchars(str_replace('_', ' ', $order['status']), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p>
         <h1><?= htmlspecialchars($order['order_number'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></h1>
         <?php if ($order['status'] === 'payment_pending'): ?>
-            <p>Your order is awaiting payment. Reserved stock will be released after the reservation deadline shown below. Payment is not available yet; you have not been charged.</p>
+            <p>Your order is awaiting payment. Reserved stock will be released after the reservation deadline shown below. The order is not confirmed until the gateway verifies a successful payment.</p>
         <?php elseif ($order['status'] === 'cancelled'): ?>
             <p>This order reservation expired and the reserved stock has been released. Create a new order to try again.</p>
         <?php else: ?>
@@ -25,7 +25,7 @@
                         <?php if ($item['variant_name'] !== null): ?><p><?= htmlspecialchars($item['variant_name'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p><?php endif; ?>
                         <p>Quantity: <?= (int) $item['quantity'] ?> · <?= htmlspecialchars((string) $item['unit_price'], ENT_QUOTES, 'UTF-8') ?> BDT each</p>
                     </div>
-                    <strong><?= htmlspecialchars(number_format((float) $item['unit_price'] * (int) $item['quantity'], 2), ENT_QUOTES, 'UTF-8') ?> BDT</strong>
+                    <strong><?= htmlspecialchars((string) $item['line_total'], ENT_QUOTES, 'UTF-8') ?> BDT</strong>
                 </article>
             <?php endforeach; ?>
         </section>
@@ -43,6 +43,19 @@
             </address>
             <?php if ($order['status'] === 'payment_pending'): ?>
                 <p class="checkout-note">Reservation deadline: <?= htmlspecialchars((string) $order['reservation_expires_at'], ENT_QUOTES, 'UTF-8') ?> UTC.</p>
+                <?php if ($paymentError !== ''): ?>
+                    <p class="cart-feedback is-error" role="alert"><?= htmlspecialchars($paymentError, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p>
+                <?php endif; ?>
+                <?php if ($paymentEnabled): ?>
+                    <form method="post" action="/orders/<?= (int) $order['id'] ?>/pay">
+                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+                        <button class="button button-primary" type="submit">Pay securely with SSLCOMMERZ</button>
+                    </form>
+                <?php else: ?>
+                    <p class="checkout-note">Online payment is not configured. Contact the store before attempting to pay. No charge has been made.</p>
+                <?php endif; ?>
+            <?php elseif ($order['status'] === 'payment_review'): ?>
+                <p class="checkout-note">Payment arrived after the stock reservation expired. This order needs manual review before fulfillment. Please contact the store.</p>
             <?php endif; ?>
             <a class="button button-secondary" href="/products">Continue shopping</a>
         </aside>
