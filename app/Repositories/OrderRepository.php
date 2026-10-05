@@ -39,7 +39,8 @@ class OrderRepository
             $itemsQuery = $this->connection->prepare(
                 'SELECT ci.id AS cart_item_id, ci.quantity, ci.product_variant_id AS selected_variant_id, '
                 . 'p.id AS product_id, p.name AS product_name, '
-                . 'p.price AS product_price, p.stock_quantity AS product_stock, p.is_active AS product_active, '
+                . 'p.price AS product_price, p.stock_quantity AS product_stock, '
+                . 'p.is_active AS product_active, p.product_type '
                 . 'FROM cart_items ci JOIN products p ON p.id = ci.product_id '
                 . 'WHERE ci.cart_id = :cart_id ORDER BY ci.id ASC FOR UPDATE'
             );
@@ -118,6 +119,7 @@ class OrderRepository
                 $pricedItems[] = [
                     'product_id' => (int) $item['product_id'],
                     'product_name' => $item['product_name'],
+                    'product_type' => $item['product_type'],
                     'variant_id' => $item['selected_variant_id'] === null ? null : (int) $item['selected_variant_id'],
                     'variant_name' => $variantName,
                     'quantity' => $quantity,
@@ -161,8 +163,9 @@ class OrderRepository
             $orderId = (int) $this->connection->lastInsertId();
 
             $insertItem = $this->connection->prepare(
-                'INSERT INTO order_items (order_id, product_id, product_variant_id, product_name, variant_name, quantity, unit_price) '
-                . 'VALUES (:order_id, :product_id, :variant_id, :product_name, :variant_name, :quantity, :unit_price)'
+                'INSERT INTO order_items '
+                . '(order_id, product_id, product_variant_id, product_name, product_type, variant_name, quantity, unit_price) '
+                . 'VALUES (:order_id, :product_id, :variant_id, :product_name, :product_type, :variant_name, :quantity, :unit_price)'
             );
             foreach ($pricedItems as $item) {
                 $insertItem->execute([
@@ -170,6 +173,7 @@ class OrderRepository
                     'product_id' => $item['product_id'],
                     'variant_id' => $item['variant_id'],
                     'product_name' => $item['product_name'],
+                    'product_type' => $item['product_type'],
                     'variant_name' => $item['variant_name'],
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
@@ -209,6 +213,14 @@ class OrderRepository
         );
         $itemsQuery->execute(['order_id' => $orderId]);
         $order['items'] = $itemsQuery->fetchAll();
+
+        $shipmentQuery = $this->connection->prepare(
+            'SELECT carrier, tracking_number, status, shipped_at, delivered_at '
+            . 'FROM shipments WHERE order_id = :order_id LIMIT 1'
+        );
+        $shipmentQuery->execute(['order_id' => $orderId]);
+        $shipment = $shipmentQuery->fetch();
+        $order['shipment'] = $shipment === false ? null : $shipment;
 
         return $order;
     }
