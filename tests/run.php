@@ -9,10 +9,12 @@ use Helpyard\App\Controllers\CatalogController;
 use Helpyard\App\Controllers\AuthController;
 use Helpyard\App\Controllers\CartController;
 use Helpyard\App\Controllers\CheckoutController;
+use Helpyard\App\Controllers\PaymentController;
 use Helpyard\App\Repositories\CatalogRepository;
 use Helpyard\App\Core\Response;
 use Helpyard\App\Core\Router;
 use Helpyard\App\Core\SessionSecurity;
+use Helpyard\App\Services\SSLCommerzGateway;
 
 $file = tempnam(sys_get_temp_dir(), 'helpyard-env-');
 if ($file === false) {
@@ -92,6 +94,30 @@ try {
     ) {
         throw new RuntimeException('Cart quantities must be positive integers capped at 99.');
     }
+    if (SSLCommerzGateway::normalizedAmount('10') !== '10.00'
+        || SSLCommerzGateway::normalizedAmount('500000.01') !== '500000.01'
+        || SSLCommerzGateway::normalizedAmount('-1') !== null
+        || SSLCommerzGateway::normalizedAmount('1e2') !== null
+        || SSLCommerzGateway::normalizedAmount('5000000') !== null
+        || !SSLCommerzGateway::isTrustedGatewayUrl(
+            'https://sandbox.sslcommerz.com/gwprocess/v4/gw.php?Q=example',
+            'sandbox.sslcommerz.com'
+        )
+        || SSLCommerzGateway::isTrustedGatewayUrl(
+            'https://attacker.example/gateway',
+            'sandbox.sslcommerz.com'
+        )
+        || SSLCommerzGateway::isTrustedGatewayUrl(
+            'https://user@sandbox.sslcommerz.com/gateway',
+            'sandbox.sslcommerz.com'
+        )
+        || SSLCommerzGateway::isTrustedGatewayUrl(
+            'https://user:password@sandbox.sslcommerz.com/gateway',
+            'sandbox.sslcommerz.com'
+        )
+    ) {
+        throw new RuntimeException('Payment amounts or hosted gateway URLs were not validated safely.');
+    }
 
     if (AuthController::validateRegistration('Customer Name', 'customer@example.com', 'long-enough-password') !== []) {
         throw new RuntimeException('Valid customer registration details were rejected.');
@@ -132,6 +158,18 @@ try {
     }
     if ((new CheckoutController([]))->show()->status() !== 303) {
         throw new RuntimeException('Checkout should require a signed-in customer.');
+    }
+    if ((new PaymentController([], []))->initiate(['id' => '1'], new Request(
+        ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/orders/1/pay'],
+        [],
+        ['csrf_token' => 'invalid-token']
+    ))->status() !== 303) {
+        throw new RuntimeException('Payment initiation should require a signed-in customer.');
+    }
+    if ((new PaymentController([], []))->ipn([], new Request(
+        ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/payments/ipn']
+    ))->status() !== 400) {
+        throw new RuntimeException('Payment notifications without provider references should be rejected.');
     }
     $_SESSION['user_id'] = 123;
     $_SESSION['user_role'] = 'customer';
@@ -174,7 +212,7 @@ try {
         }
     }
 
-    echo "Environment, SQL, routing, catalog, cart, and authentication security tests passed.\n";
+    echo "Environment, SQL, routing, catalog, cart, payment validation, and authentication tests passed.\n";
 } finally {
     unlink($file);
     putenv($loadedName);
