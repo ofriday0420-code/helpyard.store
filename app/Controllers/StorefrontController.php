@@ -3,6 +3,7 @@
 namespace Helpyard\App\Controllers;
 
 use Helpyard\App\Core\Response;
+use Helpyard\App\Core\SessionSecurity;
 use RuntimeException;
 
 class StorefrontController
@@ -92,6 +93,7 @@ class StorefrontController
             throw new RuntimeException('Storefront template is missing: ' . $template);
         }
 
+        $data['csrfToken'] = SessionSecurity::csrfToken();
         extract($data, EXTR_SKIP);
         ob_start();
         require $path;
