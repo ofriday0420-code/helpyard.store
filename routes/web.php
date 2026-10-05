@@ -6,6 +6,7 @@ use Helpyard\App\Controllers\CartController;
 use Helpyard\App\Controllers\CheckoutController;
 use Helpyard\App\Controllers\PaymentController;
 use Helpyard\App\Controllers\AdminFulfillmentController;
+use Helpyard\App\Controllers\DownloadController;
 use Helpyard\App\Core\Router;
 
 $auth = new AuthController($config['database']);
@@ -13,7 +14,10 @@ $cart = new CartController($config['database']);
 $checkout = new CheckoutController($config['database'], $config['payment']);
 $payments = new PaymentController($config['database'], $config['payment']);
 $adminFulfillment = new AdminFulfillmentController($config['database']);
+$downloads = new DownloadController($config['database'], $config['app']['private_storage']);
 $webRouter = new Router();
+$webRouter->get('/account/downloads', [$downloads, 'index']);
+$webRouter->get('/account/downloads/{id}', [$downloads, 'download']);
 $webRouter->get('/admin/fulfillment', [$adminFulfillment, 'index']);
 $webRouter->post('/admin/orders/{id}/fulfillment', [$adminFulfillment, 'advance']);
 $webRouter->get('/cart', [$cart, 'show']);
