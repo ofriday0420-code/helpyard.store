@@ -23,4 +23,5 @@ Environment::load(__DIR__ . '/.env');
 return [
     'app' => require __DIR__ . '/config/app.php',
     'database' => require __DIR__ . '/config/database.php',
+    'payment' => require __DIR__ . '/config/payment.php',
 ];
