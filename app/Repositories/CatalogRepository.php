@@ -14,7 +14,7 @@ class CatalogRepository
 
     public function findActiveProducts(array $filters, int $limit, int $offset): array
     {
-        $conditions = ['p.is_active = 1'];
+        $conditions = ['p.is_active = 1', '(p.category_id IS NULL OR c.is_active = 1)'];
         $parameters = [];
 
         if (isset($filters['category'])) {
@@ -72,6 +72,7 @@ class CatalogRepository
         $query = $this->connection->query(
             'SELECT c.id, c.name, c.slug, COUNT(p.id) AS product_count '
             . 'FROM categories c LEFT JOIN products p ON p.category_id = c.id AND p.is_active = 1 '
+            . 'WHERE c.is_active = 1 '
             . 'GROUP BY c.id, c.name, c.slug ORDER BY c.name ASC'
         );
 
@@ -84,7 +85,7 @@ class CatalogRepository
             'SELECT p.id, p.name, p.slug, p.product_type, p.short_description, p.description, '
             . 'p.price, p.compare_price, p.stock_quantity, c.name AS category_name, c.slug AS category_slug '
             . 'FROM products p LEFT JOIN categories c ON c.id = p.category_id '
-            . 'WHERE p.slug = :slug AND p.is_active = 1 LIMIT 1'
+            . 'WHERE p.slug = :slug AND p.is_active = 1 AND (p.category_id IS NULL OR c.is_active = 1) LIMIT 1'
         );
         $productQuery->execute(['slug' => $slug]);
         $product = $productQuery->fetch();
