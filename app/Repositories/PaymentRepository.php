@@ -227,6 +227,7 @@ class PaymentRepository
                     throw new RuntimeException('Could not update the order after payment confirmation.');
                 }
                 $this->grantPaidOrderDownloads((int) $payment['order_id']);
+                $this->grantPaidOrderCourses((int) $payment['order_id']);
                 $paymentStatus = 'paid';
             } else {
                 if ($order['status'] === 'payment_pending') {
@@ -313,6 +314,19 @@ class PaymentRepository
             . 'WHERE oi.order_id = :order_id '
             . "AND oi.product_type IN ('digital', 'software', 'book', 'course', 'website') "
             . 'ON DUPLICATE KEY UPDATE revoked_at = NULL'
+        );
+        $statement->execute(['order_id' => $orderId]);
+    }
+
+    private function grantPaidOrderCourses(int $orderId): void
+    {
+        $statement = $this->connection->prepare(
+            'INSERT INTO course_enrollments (user_id, course_id, order_id) '
+            . 'SELECT DISTINCT o.user_id, c.id, o.id FROM orders o '
+            . 'JOIN order_items oi ON oi.order_id = o.id AND oi.product_type = \'course\' '
+            . 'JOIN courses c ON c.product_id = oi.product_id '
+            . 'WHERE o.id = :order_id AND o.status = \'paid\' '
+            . 'ON DUPLICATE KEY UPDATE order_id = VALUES(order_id)'
         );
         $statement->execute(['order_id' => $orderId]);
     }
