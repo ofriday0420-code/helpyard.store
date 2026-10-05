@@ -40,8 +40,9 @@ class OrderRepository
                 'SELECT ci.id AS cart_item_id, ci.quantity, ci.product_variant_id AS selected_variant_id, '
                 . 'p.id AS product_id, p.name AS product_name, '
                 . 'p.price AS product_price, p.stock_quantity AS product_stock, '
-                . 'p.is_active AS product_active, p.product_type '
+                . 'p.is_active AS product_active, p.product_type, c.is_active AS category_active '
                 . 'FROM cart_items ci JOIN products p ON p.id = ci.product_id '
+                . 'LEFT JOIN categories c ON c.id = p.category_id '
                 . 'WHERE ci.cart_id = :cart_id ORDER BY ci.id ASC FOR UPDATE'
             );
             $itemsQuery->execute(['cart_id' => $cartId]);
@@ -70,7 +71,9 @@ class OrderRepository
             $pricedItems = [];
             foreach ($items as $item) {
                 $quantity = (int) $item['quantity'];
-                if ((int) $item['product_active'] !== 1) {
+                if ((int) $item['product_active'] !== 1
+                    || ($item['category_active'] !== null && (int) $item['category_active'] !== 1)
+                ) {
                     throw new CheckoutException('A product in your cart is no longer available. Please update your cart.');
                 }
 
