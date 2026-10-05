@@ -10,6 +10,7 @@ use Helpyard\App\Controllers\DownloadController;
 use Helpyard\App\Controllers\CourseController;
 use Helpyard\App\Controllers\AdminFileController;
 use Helpyard\App\Controllers\AdminCatalogController;
+use Helpyard\App\Controllers\AdminOrderController;
 use Helpyard\App\Core\Router;
 
 $auth = new AuthController($config['database']);
@@ -21,7 +22,10 @@ $downloads = new DownloadController($config['database'], $config['app']['private
 $courses = new CourseController($config['database']);
 $adminFiles = new AdminFileController($config['database'], $config['app']['private_storage']);
 $adminCatalog = new AdminCatalogController($config['database']);
+$adminOrders = new AdminOrderController($config['database']);
 $webRouter = new Router();
+$webRouter->get('/admin/orders', [$adminOrders, 'index']);
+$webRouter->get('/admin/orders/{id}', [$adminOrders, 'show']);
 $webRouter->get('/admin/catalog', [$adminCatalog, 'index']);
 $webRouter->post('/admin/catalog/categories', [$adminCatalog, 'createCategory']);
 $webRouter->post('/admin/catalog/categories/{id}', [$adminCatalog, 'updateCategory']);
