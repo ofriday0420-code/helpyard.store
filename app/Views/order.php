@@ -41,6 +41,17 @@
                 <?= htmlspecialchars($order['shipping_city'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?> <?= htmlspecialchars((string) $order['shipping_postal_code'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?><br>
                 <?= htmlspecialchars($order['shipping_country'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
             </address>
+            <?php if ($order['shipment'] !== null): ?>
+                <h3>Shipment tracking</h3>
+                <p>Carrier: <?= htmlspecialchars($order['shipment']['carrier'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p>
+                <p>Tracking number: <?= htmlspecialchars($order['shipment']['tracking_number'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p>
+                <p>Shipment status: <?= htmlspecialchars(str_replace('_', ' ', $order['shipment']['status']), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p>
+                <?php if ($order['shipment']['delivered_at'] !== null): ?>
+                    <p>Delivered: <?= htmlspecialchars($order['shipment']['delivered_at'], ENT_QUOTES, 'UTF-8') ?> UTC</p>
+                <?php else: ?>
+                    <p>Shipped: <?= htmlspecialchars($order['shipment']['shipped_at'], ENT_QUOTES, 'UTF-8') ?> UTC</p>
+                <?php endif; ?>
+            <?php endif; ?>
             <?php if ($order['status'] === 'payment_pending'): ?>
                 <p class="checkout-note">Reservation deadline: <?= htmlspecialchars((string) $order['reservation_expires_at'], ENT_QUOTES, 'UTF-8') ?> UTC.</p>
                 <?php if ($paymentError !== ''): ?>
