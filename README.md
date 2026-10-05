@@ -4,7 +4,7 @@ This repository contains a working storefront, customer account flows, a session
 
 ## Current implementation status
 
-The engineering foundation and initial commerce flows are implemented. Checkout, hosted SSLCOMMERZ callbacks, a reservation cleanup worker, and customer order history are in place; merchant credentials, database integration testing, fulfillment, and production approval are still required.
+The engineering foundation and initial commerce flows are implemented. Checkout, hosted SSLCOMMERZ callbacks, a reservation cleanup worker, customer order history, and the first staff-only physical-order fulfillment workflow are in place; merchant credentials, database integration testing, digital/course/software fulfillment, and production approval are still required.
 
 ### Included
 - MVC-style app structure aligned to the roadmap
@@ -14,10 +14,11 @@ The engineering foundation and initial commerce flows are implemented. Checkout,
 - Responsive storefront, database-backed catalog API, and product pages
 - Customer authentication, profile, and saved delivery addresses
 - Cart, authenticated checkout, price/stock revalidation, and order history details
+- Staff-only physical/book order processing, shipment tracking, and customer-visible delivery status
 - Scheduled reservation cleanup command and customer recent-order history
 
 ### Planned next phases
-1. Order fulfillment and customer notifications
+1. Protected digital delivery, course enrollment, software licensing, and fulfillment notifications
 2. Admin product, inventory, and payment-review management
 3. Audit logging, integration coverage, deployment, and production hardening
 
@@ -49,10 +50,11 @@ On Windows, run `php --ini` to find the active `php.ini`. If `pdo_mysql` is not 
 - The first authentication slice provides customer registration, login, logout, CSRF-protected forms, session rotation, login throttling, and a protected account page. Email verification and password-reset delivery are not yet enabled because no email provider is configured.
 - The cart is database-backed and associated with a random key held in the server-side session. Product and variant prices and stock are read from the database; add/update/remove forms require CSRF tokens, and requested quantities are capped at 99 and checked against availability. Guest-cart/account-cart merging is not yet implemented.
 - Checkout requires a signed-in customer and an address belonging to that customer. It snapshots the delivery address and product details, recalculates totals from current database prices, reserves stock transactionally, and creates an order in `payment_pending` for 30 minutes. Expired reservations are released when a checkout, order-status, verified payment request, or the cleanup worker runs.
-- Schedule `php database/release_expired_reservations.php` to run every few minutes (for example, Windows Task Scheduler or cron) so expired reservations are released even when no customers visit checkout. The worker processes bounded batches, restores inventory, cancels pending payment attempts, and exits non-zero when cleanup fails. The customer account lists the latest 50 orders; fulfillment tracking and notifications are not yet configured.
+- Schedule `php database/release_expired_reservations.php` to run every few minutes (for example, Windows Task Scheduler or cron) so expired reservations are released even when no customers visit checkout. The worker processes bounded batches, restores inventory, cancels pending payment attempts, and exits non-zero when cleanup fails. The customer account lists the latest 50 orders.
+- The first fulfillment slice is documented in `docs/next-step-implementation-plan.md`. Admin fulfillment is available at `/admin/fulfillment` to authenticated accounts with the `admin` role; admin roles must be assigned through a trusted operator-controlled process (there is no public admin registration). Only paid orders whose snapshotted lines are all `physical` or `book` can move through processing, shipped, and delivered. Carrier and tracking information is shown on that order's customer-owned detail page. Protected digital downloads, course enrollment, software licensing, and fulfillment notifications are not implemented yet.
 - Hosted payment uses SSLCOMMERZ in BDT. It remains disabled unless `SSLCOMMERZ_STORE_ID` and `SSLCOMMERZ_STORE_PASSWORD` are configured; sandbox mode defaults on. Before live use, set real merchant credentials, set `SSLCOMMERZ_SANDBOX=false`, set `APP_URL` to the public HTTPS site, configure the SSLCOMMERZ IPN URL as `/payments/ipn`, run migrations, and complete sandbox and production verification. Both browser returns and IPNs are verified against the provider's server-side validation API before an order is marked paid. Risky, late, or duplicate verified payments are placed into `payment_review` for manual reconciliation. See the [SSLCOMMERZ Hosted Payment API documentation](https://developer.sslcommerz.com/doc/v4/).
 - Customer account holders can update their display name and manage their own saved addresses. Address writes require CSRF tokens; ownership is enforced in every address query, and setting a default address replaces the previous default for that customer.
-- MySQL DDL statements are not fully transactional. If a migration fails partway, inspect the database before retrying; current schema statements use `CREATE TABLE IF NOT EXISTS` for safe reruns.
+- MySQL DDL statements are not fully transactional. If a migration fails partway, inspect the database before retrying; current schema statements use `CREATE TABLE IF NOT EXISTS` for safe reruns. Migration 010 snapshots product types and adds shipment/event records; verify all migrations and order flows against MySQL/MariaDB before production use.
 
 ## Related source
 
