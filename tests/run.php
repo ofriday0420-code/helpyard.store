@@ -44,6 +44,16 @@ try {
     if (count($statements) !== 2) {
         throw new RuntimeException('SQL scripts were not split into the expected statements.');
     }
+    $migrationFiles = glob(__DIR__ . '/../database/migrations/*.sql');
+    if ($migrationFiles === false || $migrationFiles === []) {
+        throw new RuntimeException('Database migration files could not be found.');
+    }
+    foreach ($migrationFiles as $migrationFile) {
+        $migrationContents = file_get_contents($migrationFile);
+        if ($migrationContents === false || SqlScript::statements($migrationContents) === []) {
+            throw new RuntimeException('A database migration is empty or invalid: ' . basename($migrationFile));
+        }
+    }
 
     $catalog = new CatalogController([]);
     $invalidCategory = new Request(
