@@ -24,7 +24,9 @@ class CartRepository
             }
 
             $product = $this->connection->prepare(
-                'SELECT price, stock_quantity FROM products WHERE id = :id AND is_active = 1 FOR UPDATE'
+                'SELECT p.price, p.stock_quantity FROM products p '
+                . 'LEFT JOIN categories c ON c.id = p.category_id '
+                . 'WHERE p.id = :id AND p.is_active = 1 AND (p.category_id IS NULL OR c.is_active = 1) FOR UPDATE'
             );
             $product->execute(['id' => $productId]);
             $productDetails = $product->fetch();
@@ -110,9 +112,10 @@ class CartRepository
             }
 
             $statement = $this->connection->prepare(
-                'SELECT ci.id, ci.product_variant_id, p.price, p.stock_quantity, p.is_active, '
+                'SELECT ci.id, ci.product_variant_id, p.price, p.stock_quantity, p.is_active, c.is_active AS category_active, '
                 . 'pv.id AS active_variant_id, pv.price_override, pv.stock_quantity AS variant_stock '
                 . 'FROM cart_items ci JOIN products p ON p.id = ci.product_id '
+                . 'LEFT JOIN categories c ON c.id = p.category_id '
                 . 'LEFT JOIN product_variants pv ON pv.id = ci.product_variant_id '
                 . 'AND pv.product_id = p.id AND pv.is_active = 1 '
                 . 'WHERE ci.id = :item_id AND ci.cart_id = :cart_id FOR UPDATE'
@@ -120,6 +123,7 @@ class CartRepository
             $statement->execute(['item_id' => $itemId, 'cart_id' => $cartId]);
             $item = $statement->fetch();
             if ($item === false || (int) $item['is_active'] !== 1
+                || ($item['category_active'] !== null && (int) $item['category_active'] !== 1)
                 || ($item['product_variant_id'] !== null && $item['active_variant_id'] === null)
                 || $quantity > (int) ($item['product_variant_id'] === null ? $item['stock_quantity'] : $item['variant_stock'])
             ) {
@@ -176,8 +180,10 @@ class CartRepository
             . 'COALESCE(pv.price_override, p.price) AS current_price, '
             . 'ci.quantity * COALESCE(pv.price_override, p.price) AS line_total, '
             . 'COALESCE(pv.stock_quantity, p.stock_quantity) AS stock_quantity, '
-            . 'CASE WHEN p.is_active = 1 AND (ci.product_variant_id IS NULL OR pv.id IS NOT NULL) THEN 1 ELSE 0 END AS is_available '
+            . 'CASE WHEN p.is_active = 1 AND (p.category_id IS NULL OR c.is_active = 1) '
+            . 'AND (ci.product_variant_id IS NULL OR pv.id IS NOT NULL) THEN 1 ELSE 0 END AS is_available '
             . 'FROM cart_items ci JOIN products p ON p.id = ci.product_id '
+            . 'LEFT JOIN categories c ON c.id = p.category_id '
             . 'LEFT JOIN product_variants pv ON pv.id = ci.product_variant_id '
             . 'AND pv.product_id = p.id AND pv.is_active = 1 '
             . 'WHERE ci.cart_id = :cart_id ORDER BY ci.id ASC'
@@ -188,9 +194,10 @@ class CartRepository
         $subtotal = $this->connection->prepare(
             'SELECT COALESCE(SUM(ci.quantity * COALESCE(pv.price_override, p.price)), 0.00) '
             . 'FROM cart_items ci JOIN products p ON p.id = ci.product_id '
+            . 'LEFT JOIN categories c ON c.id = p.category_id '
             . 'LEFT JOIN product_variants pv ON pv.id = ci.product_variant_id '
             . 'AND pv.product_id = p.id AND pv.is_active = 1 '
-            . 'WHERE ci.cart_id = :cart_id AND p.is_active = 1 '
+            . 'WHERE ci.cart_id = :cart_id AND p.is_active = 1 AND (p.category_id IS NULL OR c.is_active = 1) '
             . 'AND (ci.product_variant_id IS NULL OR pv.id IS NOT NULL)'
         );
         $subtotal->execute(['cart_id' => $cartId]);
