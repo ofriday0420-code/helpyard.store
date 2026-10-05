@@ -1,13 +1,25 @@
 # Next-step implementation plan
 
-The next unfinished milestone in the Helpyard.store Professional Developer
-Implementation Plan is Phase 7 — Fulfillment. The work is sequenced so each
-delivery has a testable acceptance point and does not expose paid digital assets
-through public URLs.
+The next unfinished milestone in the Helpyard.store New Implementation Plan
+(version 2.0, 05 October 2026) is the first course-learning flow. Physical
+fulfillment and the first protected-download slice already exist; the course
+flow adds customer enrollment, access control, and progress without exposing
+course content through public URLs.
 
-## Phase 7 delivery sequence
+## Course first-flow acceptance
 
-1. **Physical-order fulfillment and shipment tracking (starting now)**
+- Add course, section, lesson, enrollment, and lesson-progress records.
+- Create an enrollment only when a verified payment moves the order to `paid`;
+  retries must not duplicate an order's enrollment.
+- Require an active enrollment backed by a paid order for both course viewing
+  and lesson progress updates.
+- Show enrolled courses and completion counts in the customer account.
+- Serve lesson content only through the authorized customer course page; do
+  not add public media URLs.
+
+## Remaining fulfillment sequence
+
+1. **Physical-order fulfillment and shipment tracking (implemented)**
    - Snapshot each order line's product type at checkout.
    - Add a staff-only fulfillment queue and guarded order transitions:
      `paid → processing → shipped → delivered`.
@@ -20,7 +32,7 @@ through public URLs.
      customer access to the admin queue are rejected; customers see shipment
      data only for their own order.
 
-2. **Protected digital delivery (starting now)**
+2. **Protected digital delivery (first slice implemented)**
    - Define private file metadata/storage and paid-order entitlements.
    - Add an authorization-checked download endpoint with expiring/revocable
      access; never expose private files through `public/`.
@@ -30,7 +42,7 @@ through public URLs.
      attachment streaming. Operator-managed file upload/admin UI and download
      expiry/usage limits remain follow-up work.
 
-3. **Course fulfillment**
+3. **Course fulfillment (current build)**
    - Add enrollment and lesson-access records tied to verified paid orders.
    - Add the first course-learning flow and customer course view.
    - Acceptance: only entitled customers can access enrolled course content.
@@ -62,6 +74,9 @@ through public URLs.
 
 ## Current build slice
 
-The first delivery is the physical-order workflow in item 1. It does not claim
-that digital products, courses, licensing, admin catalog management, production
-deployment, or production acceptance are complete.
+The current delivery implements course schema, verified-paid enrollment,
+customer-only access, and lesson completion tracking. Course authoring/admin
+management, video/media hosting, licensing, email delivery, production
+deployment, and production acceptance remain incomplete. A MySQL/MariaDB
+integration environment with PHP `pdo_mysql` is still required to validate
+migrations, payment callback idempotency, and customer ownership isolation.
