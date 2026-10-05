@@ -15,8 +15,10 @@ use RuntimeException;
 
 class CheckoutController
 {
-    public function __construct(private array $databaseConfig)
-    {
+    public function __construct(
+        private array $databaseConfig,
+        private array $paymentConfig = []
+    ) {
     }
 
     public function show(array $params = [], ?Request $request = null): Response
@@ -116,6 +118,9 @@ class CheckoutController
 
         $title = 'Order ' . $order['order_number'];
         $description = 'View the status and details of your Helpyard.store order.';
+        $paymentEnabled = ($this->paymentConfig['enabled'] ?? false) === true;
+        $csrfToken = SessionSecurity::csrfToken();
+        $paymentError = $this->consumeFlash('payment_error');
         ob_start();
         require __DIR__ . '/../Views/order.php';
         $html = ob_get_clean();
