@@ -7,7 +7,7 @@
         <div>
             <p class="eyebrow">Customer account</p>
             <h1>Welcome, <?= htmlspecialchars($user['name'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></h1>
-            <p class="auth-intro">Manage your profile and saved addresses. Order history, downloads, and course access will appear here as those features are built.</p>
+            <p class="auth-intro">Manage your profile, saved addresses, and recent orders.</p>
         </div>
         <?php if ($notice !== ''): ?>
             <p class="auth-success" role="status"><?= htmlspecialchars($notice, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p>
@@ -28,6 +28,25 @@
             <button class="button button-primary" type="submit">Update profile</button>
         </form>
         <a class="button button-primary" href="/account/addresses">Manage addresses <span aria-hidden="true">→</span></a>
+        <section class="account-orders" aria-labelledby="account-orders-title">
+            <h2 id="account-orders-title">Recent orders</h2>
+            <?php if ($orders === []): ?>
+                <p class="auth-intro">You have not placed an order yet.</p>
+            <?php else: ?>
+                <div class="account-order-list">
+                    <?php foreach ($orders as $order): ?>
+                        <a class="account-order" href="/orders/<?= (int) $order['id'] ?>">
+                            <span>
+                                <strong><?= htmlspecialchars($order['order_number'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>
+                                <small><?= htmlspecialchars((new DateTimeImmutable($order['created_at'], new DateTimeZone('UTC')))->format('M j, Y'), ENT_QUOTES, 'UTF-8') ?></small>
+                            </span>
+                            <span class="account-order-state"><?= htmlspecialchars(str_replace('_', ' ', $order['status']), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></span>
+                            <strong><?= htmlspecialchars((string) $order['final_total'], ENT_QUOTES, 'UTF-8') ?> BDT</strong>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </section>
         <form method="post" action="/logout">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <button class="button button-primary" type="submit">Sign out</button>
