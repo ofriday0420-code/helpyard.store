@@ -2,9 +2,9 @@
 
 use Helpyard\App\Core\Database;
 use Helpyard\App\Core\MigrationRunner;
-use Helpyard\App\Core\CheckoutException;
 use Helpyard\App\Core\PaymentException;
 use Helpyard\App\Repositories\AdminFileRepository;
+use Helpyard\App\Repositories\AdminOrderRepository;
 use Helpyard\App\Repositories\CatalogRepository;
 use Helpyard\App\Repositories\CourseRepository;
 use Helpyard\App\Repositories\DownloadRepository;
@@ -332,7 +332,6 @@ $addressInsert->execute([
 ]);
 $addressId = (int) $connection->lastInsertId();
 $raceSessions = ['ci-' . strtolower($fixture) . '-race-a', 'ci-' . strtolower($fixture) . '-race-b'];
-$raceOrders = ['CI-' . $fixture . '-RACE-A', 'CI-' . $fixture . '-RACE-B'];
 $cartInsert = $connection->prepare('INSERT INTO carts (user_id, session_id) VALUES (:user_id, :session_id)');
 $cartItemInsert = $connection->prepare(
     'INSERT INTO cart_items (cart_id, product_id, quantity, unit_price) '
@@ -348,63 +347,81 @@ foreach ($raceSessions as $sessionId) {
     ]);
 }
 
-if (!function_exists('pcntl_fork') || !function_exists('stream_socket_pair')) {
-    throw new RuntimeException('The concurrent inventory integration test requires pcntl and Unix socket pairs.');
+$barrierFile = tempnam(sys_get_temp_dir(), 'helpyard-checkout-barrier-');
+if ($barrierFile === false) {
+    throw new RuntimeException('Could not create the checkout concurrency barrier.');
 }
-
-$workers = [];
-foreach ($raceSessions as $sessionId) {
-    $sockets = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
-    if ($sockets === false) {
-        throw new RuntimeException('Could not create a synchronization socket for the stock concurrency test.');
-    }
-    $pid = pcntl_fork();
-    if ($pid === -1) {
+unlink($barrierFile);
+$workerProcesses = [];
+foreach ($raceSessions as $index => $sessionId) {
+    $readyFile = $barrierFile . '-' . $index;
+    $descriptors = [
+        0 => ['pipe', 'r'],
+        1 => ['pipe', 'w'],
+        2 => ['pipe', 'w'],
+    ];
+    $process = proc_open(
+        [PHP_BINARY, __DIR__ . '/mysql_checkout_worker.php'],
+        $descriptors,
+        $pipes,
+        __DIR__
+    );
+    if (!is_resource($process)) {
         throw new RuntimeException('Could not start a concurrent checkout worker.');
     }
-    if ($pid === 0) {
-        fclose($sockets[0]);
-        foreach ($workers as $worker) {
-            fclose($worker['socket']);
-        }
-        if (fgets($sockets[1]) === false) {
-            exit(2);
-        }
+    fwrite($pipes[0], json_encode([
+        'session_id' => $sessionId,
+        'user_id' => $customerId,
+        'address_id' => $addressId,
+        'barrier_file' => $barrierFile,
+        'ready_file' => $readyFile,
+    ], JSON_THROW_ON_ERROR));
+    fclose($pipes[0]);
+    $workerProcesses[] = [
+        'process' => $process,
+        'stdout' => $pipes[1],
+        'stderr' => $pipes[2],
+        'ready_file' => $readyFile,
+    ];
+}
 
-        try {
-            $workerConnection = Database::connect($config['database']);
-            $order = (new OrderRepository($workerConnection))->createFromCart(
-                $sessionId,
-                $customerId,
-                $addressId
-            );
-            fwrite($sockets[1], 'success:' . $order['order_number'] . "\n");
-            exit(0);
-        } catch (CheckoutException $exception) {
-            fwrite($sockets[1], "rejected\n");
-            exit(0);
-        } catch (Throwable $exception) {
-            fwrite($sockets[1], 'error:' . $exception::class . ':' . $exception->getMessage() . "\n");
-            exit(1);
+$readyDeadline = microtime(true) + 10;
+do {
+    $allWorkersReady = true;
+    foreach ($workerProcesses as $worker) {
+        if (!is_file($worker['ready_file'])) {
+            $allWorkersReady = false;
+            break;
         }
     }
+    if ($allWorkersReady) {
+        break;
+    }
+    usleep(10000);
+} while (microtime(true) < $readyDeadline);
+$workersMissedStartDeadline = !$allWorkersReady;
+file_put_contents($barrierFile, 'go');
 
-    fclose($sockets[1]);
-    $workers[] = ['pid' => $pid, 'socket' => $sockets[0]];
-}
-
-foreach ($workers as $worker) {
-    fwrite($worker['socket'], "go\n");
-    fflush($worker['socket']);
-}
 $checkoutResults = [];
-foreach ($workers as $worker) {
-    $checkoutResults[] = trim((string) fgets($worker['socket']));
-    fclose($worker['socket']);
-    pcntl_waitpid($worker['pid'], $workerStatus);
-    if (!pcntl_wifexited($workerStatus) || pcntl_wexitstatus($workerStatus) !== 0) {
-        throw new RuntimeException('A checkout concurrency worker terminated unexpectedly.');
+foreach ($workerProcesses as $worker) {
+    $output = trim((string) stream_get_contents($worker['stdout']));
+    $error = trim((string) stream_get_contents($worker['stderr']));
+    fclose($worker['stdout']);
+    fclose($worker['stderr']);
+    $exitCode = proc_close($worker['process']);
+    if ($exitCode !== 0) {
+        throw new RuntimeException('A checkout concurrency worker failed: ' . $error . ' ' . $output);
     }
+    $checkoutResults[] = $output;
+    if (is_file($worker['ready_file']) && !unlink($worker['ready_file'])) {
+        throw new RuntimeException('Could not remove a checkout worker readiness file.');
+    }
+}
+if (is_file($barrierFile) && !unlink($barrierFile)) {
+    throw new RuntimeException('Could not remove the checkout concurrency barrier.');
+}
+if ($workersMissedStartDeadline) {
+    throw new RuntimeException('Concurrent checkout workers did not reach the start barrier in time.');
 }
 if (count(array_filter($checkoutResults, static fn (string $result): bool => str_starts_with($result, 'success:'))) !== 1
     || count(array_filter($checkoutResults, static fn (string $result): bool => $result === 'rejected')) !== 1
@@ -454,9 +471,12 @@ if ((int) $stockQuery->fetchColumn() !== 0) {
 
 $expireRaceOrder = $connection->prepare(
     "UPDATE orders SET reservation_expires_at = DATE_SUB(UTC_TIMESTAMP(), INTERVAL 1 MINUTE) "
-    . "WHERE order_number IN (:order_a, :order_b) AND status = 'payment_pending'"
+    . "WHERE order_number = :order_number AND status = 'payment_pending'"
 );
-$expireRaceOrder->execute(['order_a' => $raceOrders[0], 'order_b' => $raceOrders[1]]);
+$expireRaceOrder->execute(['order_number' => $winningOrderNumber]);
+if ($expireRaceOrder->rowCount() !== 1) {
+    throw new RuntimeException('The checkout order was not eligible for reservation-expiry testing.');
+}
 $orders = new OrderRepository($connection);
 if ($orders->releaseExpiredReservations() !== 1) {
     throw new RuntimeException('The winning checkout reservation was not released exactly once.');
@@ -468,11 +488,10 @@ if ((int) $stockQuery->fetchColumn() !== 1 || $orders->releaseExpiredReservation
 $cleanupCarts = $connection->prepare('DELETE FROM carts WHERE session_id IN (:session_a, :session_b)');
 $cleanupCarts->execute(['session_a' => $raceSessions[0], 'session_b' => $raceSessions[1]]);
 $deleteRaceOrders = $connection->prepare(
-    'DELETE FROM orders WHERE order_number IN (:order_a, :order_b) AND status = :status'
+    'DELETE FROM orders WHERE order_number = :order_number AND status = :status'
 );
 $deleteRaceOrders->execute([
-    'order_a' => $raceOrders[0],
-    'order_b' => $raceOrders[1],
+    'order_number' => $winningOrderNumber,
     'status' => 'cancelled',
 ]);
 $restoreOriginalStock = $connection->prepare(
@@ -512,6 +531,24 @@ $riskStatus = $connection->prepare(
 $riskStatus->execute(['order_id' => $riskOrderId]);
 if ($riskStatus->fetch() !== ['order_status' => 'payment_review', 'payment_status' => 'review_required']) {
     throw new RuntimeException('A risky payment did not persist its order and transaction review states.');
+}
+$adminOrders = new AdminOrderRepository($connection);
+$adminOrderQueue = $adminOrders->queue();
+$riskQueueEntry = null;
+foreach ($adminOrderQueue as $queuedOrder) {
+    if ((int) $queuedOrder['id'] === $riskOrderId) {
+        $riskQueueEntry = $queuedOrder;
+        break;
+    }
+}
+$riskOrderDetails = $adminOrders->find($riskOrderId);
+if ($riskQueueEntry === null || $riskQueueEntry['status'] !== 'payment_review'
+    || $riskQueueEntry['payment_status'] !== 'review_required'
+    || $riskOrderDetails === null || $riskOrderDetails['customer_email'] === ''
+    || count($riskOrderDetails['items']) !== 1 || count($riskOrderDetails['payments']) !== 1
+    || $riskOrderDetails['payments'][0]['validation_id'] !== $riskValidation['val_id']
+) {
+    throw new RuntimeException('Administrator order review did not expose the order, customer, item, and validated-payment evidence.');
 }
 $stockQuery->execute(['product_id' => $physicalProduct['id']]);
 $stockAfterRisk = (int) $stockQuery->fetchColumn();
@@ -577,9 +614,17 @@ $expireLateOrder = $connection->prepare(
 );
 $expireLateOrder->execute(['order_id' => $lateOrderId]);
 $stockQuery->execute(['product_id' => $physicalProduct['id']]);
-$stockBeforeLatePayment = (int) $stockQuery->fetchColumn();
+$stockBeforeLateRelease = (int) $stockQuery->fetchColumn();
 if ($orders->releaseExpiredReservations() < 1) {
     throw new RuntimeException('The expired checkout reservation was not released.');
+}
+$stockQuery->execute(['product_id' => $physicalProduct['id']]);
+$stockAfterLateRelease = (int) $stockQuery->fetchColumn();
+$paymentState->execute(['order_id' => $lateOrderId]);
+if ($stockAfterLateRelease !== $stockBeforeLateRelease + 1
+    || $paymentState->fetch() !== ['order_status' => 'cancelled', 'payment_status' => 'cancelled']
+) {
+    throw new RuntimeException('Expired reservation cleanup did not restore inventory and cancel its payment once.');
 }
 $lateValidation = $validatedPayment;
 $lateValidation['tran_id'] = $lateTransactionId;
@@ -592,9 +637,9 @@ $stockQuery->execute(['product_id' => $physicalProduct['id']]);
 if ($lateResult['order_id'] !== $lateOrderId || $lateResult['already_processed']
     || !$duplicateLateResult['already_processed']
     || $lateStatus->fetchColumn() !== 'payment_review'
-    || (int) $stockQuery->fetchColumn() !== $stockBeforeLatePayment
+    || (int) $stockQuery->fetchColumn() !== $stockAfterLateRelease
 ) {
     throw new RuntimeException('A late verified payment was not isolated for manual review without double-restoring stock.');
 }
 
-echo "MySQL integration checks passed: migrations, catalog visibility, payment idempotency/risk/late callbacks, file access/revocation, course ownership/progress, shipment lifecycle, and concurrent checkout stock safety.\n";
+echo "MySQL integration checks passed: migrations, catalog visibility, concurrent checkout stock safety, payment idempotency/risk/late callbacks and admin review, file access/revocation, course ownership/progress, and shipment lifecycle.\n";
