@@ -6,7 +6,7 @@
     <section class="catalog-heading">
         <p class="eyebrow">Administration</p>
         <h1>Order administration</h1>
-        <p>Payment-review orders are shown first. Open an order to inspect its customer, item snapshot, payment attempts, and any shipment record. This console is read-only.</p>
+        <p>Payment-review orders are shown first. Open an order to inspect its customer, item snapshot, payment attempts, shipment record, and internal review notes.</p>
         <div class="admin-actions">
             <a class="button button-secondary" href="/admin/fulfillment">Physical fulfillment</a>
             <a class="button button-secondary" href="/admin/catalog">Manage catalog</a>
