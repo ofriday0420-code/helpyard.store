@@ -15,7 +15,7 @@ still pending.
   `docs/gate-0/sitemap-and-wireframes.html`; visual and product-owner approval
   remain outstanding.
 - `.github/workflows/ci.yml` provisions MySQL 8.4 and PHP 8.3 with
-  `pdo_mysql`/`fileinfo`/`pcntl`, lints application PHP, runs the existing tests,
+  `pdo_mysql`/`fileinfo`, lints application PHP, runs the existing tests,
   applies migrations to a clean database, seeds it, reruns migrations, and
   invokes `tests/mysql_integration.php`.
 - The MySQL integration test checks migration idempotency, the expected
@@ -29,21 +29,28 @@ still pending.
 - `tests/mysql_integration.php` creates fixture rows and is intentionally
   restricted to database names ending in `_test`; run it only against an
   isolated test database.
-- Previously, local `php tests/run.php`, PHP lint, `git diff --check`, and the
-  original integration suite passed against a disposable WSL MariaDB 11.8.8
-  instance after all 14 migrations and seeders were applied. The expanded
-  checkout/payment integration cases are now under validation. The Windows
-  PHP CLI has no PDO drivers and Docker is unavailable; the MySQL 8.4 GitHub
-  Actions workflow still needs a hosted run after these changes are pushed.
-  SSLCOMMERZ sandbox callback behavior, upload content inspection, and
+- Local `php tests/run.php`, PHP lint, `git diff --check`, and the expanded
+  database integration suite pass. The integration suite was run against a
+  fresh disposable WSL MariaDB 11.8.8 instance after all 14 migrations and
+  seeders were applied; the suite verifies clean/repeatable migrations,
+  concurrent checkout reservation, and payment risk/late/rejection behavior.
+  The Windows PHP CLI has no PDO drivers and Docker is unavailable; the MySQL
+  8.4 GitHub Actions workflow still needs a hosted run after these changes are
+  pushed. SSLCOMMERZ sandbox callback behavior, upload content inspection, and
   restore/load behavior remain unverified.
 - Gate 0 remains open until product-owner decisions and the draft flows are
   approved, and hosted CI demonstrates clean migrations and integration tests.
+- A first read-only administrator order console is available at
+  `/admin/orders`, with payment-review orders prioritized and an order detail
+  view for customer/order snapshots, payment attempts and provider validation
+  references, and shipment details. It does not mutate payment, order,
+  inventory, or refund state; reconciliation actions remain blocked on an
+  approved business policy.
 
 ## Next work after Gate 0
 
 1. Run the expanded database-backed checkout/stock and payment callback cases
-   locally and in hosted MySQL 8.4 CI; then fix any defects they expose.
+   in hosted MySQL 8.4 CI; then fix any defects they expose.
 2. Run the SSLCOMMERZ sandbox success, cancel, fail, repeat, late, and risk
    matrix. Repository-level verified-validation tests do not replace a real
    provider sandbox run.
@@ -135,9 +142,10 @@ applicable.
 
 The current delivery implements the first course schema and customer learning
 flow, CLI-only administrator provisioning, protected product-file upload
-and revocation, and audited product/category and inventory management. Admin
-order/payment-review operations, course authoring, email verification/reset,
-licensing, and production acceptance remain incomplete. A MySQL/MariaDB
+and revocation, audited product/category and inventory management, and a
+read-only administrator order/payment-review console. Payment-review
+resolution, course authoring, email verification/reset, licensing, and
+production acceptance remain incomplete. A MySQL/MariaDB
 integration environment with PHP `pdo_mysql` is still required to validate
 migrations, audit transactions, file entitlements, inventory reservations, and customer ownership
 isolation.
