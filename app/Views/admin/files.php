@@ -7,6 +7,11 @@
         <p class="eyebrow">Administration</p>
         <h1>Private product files</h1>
         <p>Files are stored outside the public web directory. Uploading grants access to existing customers with eligible paid orders; revoking removes that access.</p>
+        <div class="admin-actions">
+            <a class="button button-secondary" href="/admin/orders">Order administration</a>
+            <a class="button button-secondary" href="/admin/fulfillment">Physical fulfillment</a>
+            <a class="button button-secondary" href="/admin/catalog">Manage catalog</a>
+        </div>
     </section>
     <?php if ($notice !== ''): ?><p class="cart-feedback" role="status"><?= htmlspecialchars($notice, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p><?php endif; ?>
     <?php if ($error !== ''): ?><p class="cart-feedback is-error" role="alert"><?= htmlspecialchars($error, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p><?php endif; ?>
