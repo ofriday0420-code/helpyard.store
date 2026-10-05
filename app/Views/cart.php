@@ -63,7 +63,8 @@
             <aside class="cart-summary" aria-label="Order summary">
                 <h2>Summary</h2>
                 <p><span>Subtotal</span><strong><?= htmlspecialchars((string) $cart['subtotal'], ENT_QUOTES, 'UTF-8') ?> BDT</strong></p>
-                <p class="cart-checkout-note">Checkout and payment are the next implementation milestone. No order or payment is created from this cart yet.</p>
+                <p class="cart-checkout-note">Sign in and confirm a saved delivery address to place an order. Payment is not configured yet.</p>
+                <a class="button button-primary" href="/checkout">Continue to checkout</a>
                 <a class="button button-secondary" href="/products">Continue shopping</a>
             </aside>
         </div>
