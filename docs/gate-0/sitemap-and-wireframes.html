@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Draft sitemap and responsive low-fidelity Helpyard.store wireframes for Gate 0 review.">
+    <title>Helpyard.store — Gate 0 Sitemap &amp; Wireframes</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --ink: #172a42;
+            --muted: #5e6e81;
+            --line: #d9e2eb;
+            --wash: #f3f6f9;
+            --paper: #fff;
+            --navy: #10233f;
+            --teal: #13b8a6;
+            --amber: #e7a83e;
+            --blue: #587aa5;
+            --radius: 10px;
+            font: 15px/1.5 Inter, ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #edf2f6; color: var(--ink); }
+        button, a { font: inherit; }
+        a { color: #245788; }
+        button { cursor: pointer; }
+        .page { width: min(1240px, calc(100% - 36px)); margin: 28px auto 64px; }
+        .masthead {
+            display: flex; flex-wrap: wrap; gap: 20px; align-items: end;
+            justify-content: space-between; margin-bottom: 22px;
+        }
+        .eyebrow { margin: 0 0 6px; color: #087f74; font-size: .74rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+        h1 { margin: 0; color: var(--navy); font-size: clamp(1.8rem, 4vw, 2.8rem); line-height: 1.1; }
+        .subtitle { max-width: 780px; margin: 10px 0 0; color: var(--muted); }
+        .draft-badge { border: 1px solid #ebd39b; border-radius: 99px; padding: 7px 12px; color: #75530b; background: #fff8e8; font-size: .8rem; font-weight: 700; }
+        .notice { margin: 18px 0; border-left: 4px solid var(--amber); border-radius: 7px; padding: 11px 14px; background: #fff; color: #51462f; font-size: .9rem; }
+        .layout { display: grid; grid-template-columns: minmax(220px, 270px) minmax(0, 1fr); gap: 18px; align-items: start; }
+        .panel { border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); box-shadow: 0 8px 26px #10233f0b; }
+        .sitemap { padding: 18px; }
+        .sitemap h2, .preview h2, .flow h2 { margin: 0 0 12px; font-size: 1rem; color: var(--navy); }
+        .tree, .tree ul { margin: 0; padding-left: 18px; }
+        .tree { padding-left: 0; list-style: none; }
+        .tree ul { margin-top: 4px; list-style: none; border-left: 1px solid var(--line); }
+        .tree li { margin: 7px 0; }
+        .tree a { text-decoration: none; font-size: .86rem; }
+        .tree a:hover { text-decoration: underline; }
+        .tree .branch { font-size: .82rem; font-weight: 750; color: var(--ink); }
+        .sitemap-note { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: .76rem; }
+        .preview { min-width: 0; padding: 18px; }
+        .preview-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+        .screen-tabs, .device-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+        .screen-tabs { margin: 5px 0 14px; }
+        .screen-tabs button, .device-tabs button {
+            border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px;
+            background: #fff; color: var(--ink); font-size: .78rem; font-weight: 700;
+        }
+        .screen-tabs button[aria-pressed="true"], .device-tabs button[aria-pressed="true"] {
+            border-color: var(--navy); color: #fff; background: var(--navy);
+        }
+        .device-tabs button { padding: 6px 9px; }
+        .device-caption { margin: 0 0 9px; color: var(--muted); font-size: .75rem; }
+        .viewport {
+            min-height: 650px; overflow: auto; border: 1px solid #cbd6e1; border-radius: 9px;
+            padding: 16px; background: #e8eef4;
+        }
+        .wireframe {
+            width: 1024px; min-height: 610px; margin: 0 auto; overflow: hidden;
+            border: 1px solid #d4dde6; border-radius: 8px; background: var(--paper);
+        }
+        .viewport[data-device="mobile"] { min-height: 760px; }
+        .viewport[data-device="mobile"] .wireframe {
+            width: min(375px, 100%); min-height: 710px; border: 7px solid #26374b; border-radius: 25px;
+        }
+        .viewport[data-device="mobile"] .wire-header { justify-content: space-between; gap: 4px; padding: 9px 8px; }
+        .viewport[data-device="mobile"] .wire-nav { display: none; }
+        .viewport[data-device="mobile"] .wire-content,
+        .viewport[data-device="mobile"] .wire-content.narrow { width: calc(100% - 20px); margin-top: 14px; }
+        .viewport[data-device="mobile"] .hero-block,
+        .viewport[data-device="mobile"] .detail-grid,
+        .viewport[data-device="mobile"] .filters,
+        .viewport[data-device="mobile"] .two-col,
+        .viewport[data-device="mobile"] .account-grid { grid-template-columns: 1fr; }
+        .viewport[data-device="mobile"] .hero-block .placeholder { min-height: 75px; }
+        .viewport[data-device="mobile"] .detail-grid .placeholder { min-height: 150px; }
+        .viewport[data-device="mobile"] .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .viewport[data-device="mobile"] .trust-strip { grid-template-columns: 1fr; }
+        .viewport[data-device="mobile"] .admin-grid { grid-template-columns: repeat(2, 1fr); }
+        .viewport[data-device="mobile"] .account-menu { grid-template-columns: repeat(2, 1fr); }
+        .viewport[data-device="mobile"] .wire-footer { padding: 10px 12px; }
+        .wire-header { min-height: 58px; display: flex; align-items: center; gap: 20px; padding: 10px 22px; border-bottom: 1px solid var(--line); }
+        .brand { color: var(--navy); font-weight: 900; letter-spacing: -.04em; white-space: nowrap; }
+        .wire-nav { display: flex; gap: 16px; align-items: center; flex: 1; }
+        .wire-nav button, .icon-btn { border: 0; padding: 3px; color: #52647a; background: transparent; font-size: .72rem; }
+        .wire-nav button:hover, .icon-btn:hover { color: var(--navy); text-decoration: underline; }
+        .wire-actions { display: flex; gap: 8px; }
+        .wire-content { width: min(940px, calc(100% - 44px)); margin: 25px auto 30px; }
+        .wire-content.narrow { width: min(700px, calc(100% - 44px)); }
+        .wire-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 9px; padding: 14px 22px; border-top: 1px solid var(--line); background: #f8fafc; color: var(--muted); font-size: .68rem; }
+        .block { border: 1px dashed #aebdcb; border-radius: 7px; padding: 14px; background: #fbfcfd; }
+        .block + .block { margin-top: 12px; }
+        .block-label { display: block; margin-bottom: 7px; color: #75869a; font-size: .62rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+        .hero-block { min-height: 170px; display: grid; grid-template-columns: 1.15fr .85fr; align-items: center; gap: 18px; background: #f2f6fa; }
+        .hero-block h3 { margin: 0 0 8px; color: var(--navy); font-size: clamp(1.25rem, 3vw, 2rem); line-height: 1.15; }
+        .hero-block p, .copy { margin: 5px 0 12px; color: var(--muted); font-size: .8rem; }
+        .placeholder { min-height: 105px; display: grid; place-items: center; border: 1px dashed #9caec0; border-radius: 7px; color: #7a8b9e; background: #e8eef4; font-size: .72rem; text-align: center; }
+        .button-row { display: flex; flex-wrap: wrap; gap: 8px; }
+        .action { border: 1px solid var(--navy); border-radius: 6px; padding: 7px 10px; color: #fff; background: var(--navy); font-size: .7rem; font-weight: 750; }
+        .action.secondary { color: var(--navy); background: #fff; }
+        .trust-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
+        .trust-strip span { padding: 8px; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); font-size: .66rem; text-align: center; }
+        .section-label { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 16px 0 8px; }
+        .section-label h3 { margin: 0; color: var(--navy); font-size: .95rem; }
+        .section-label span { color: var(--muted); font-size: .67rem; }
+        .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .grid.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+        .product { min-width: 0; border: 1px solid var(--line); border-radius: 7px; padding: 8px; }
+        .product .placeholder { min-height: 74px; }
+        .product strong, .product small { display: block; margin-top: 5px; overflow-wrap: anywhere; }
+        .product strong { font-size: .71rem; }
+        .product small { color: var(--muted); font-size: .65rem; }
+        .product .action { margin-top: 7px; padding: 5px 7px; font-size: .63rem; }
+        .search-row { display: flex; gap: 8px; margin-bottom: 12px; }
+        .fake-input { flex: 1; min-height: 36px; border: 1px solid #aebdcb; border-radius: 6px; padding: 8px; color: #8291a1; background: #fff; font-size: .72rem; }
+        .filters { display: grid; grid-template-columns: 1fr 3fr; gap: 12px; }
+        .filter-box { min-height: 190px; }
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+        .detail-grid .placeholder { min-height: 290px; }
+        .price { margin: 12px 0; color: var(--navy); font-size: 1.1rem; font-weight: 850; }
+        .rows { display: grid; gap: 8px; }
+        .row { display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid var(--line); border-radius: 6px; padding: 9px; font-size: .72rem; }
+        .row.muted { color: var(--muted); background: #fafbfd; }
+        .two-col { display: grid; grid-template-columns: 1.3fr .7fr; gap: 12px; }
+        .steps { display: flex; gap: 6px; margin: 0 0 14px; }
+        .steps span { flex: 1; padding: 7px 3px; border-radius: 5px; color: var(--muted); background: #edf2f6; font-size: .64rem; text-align: center; }
+        .steps .current { color: #fff; background: var(--navy); }
+        .field { margin: 9px 0; }
+        .field label { display: block; margin-bottom: 4px; color: #54667a; font-size: .67rem; font-weight: 700; }
+        .field .fake-input { min-height: 31px; }
+        .account-grid { display: grid; grid-template-columns: 190px 1fr; gap: 14px; }
+        .account-menu { display: grid; align-content: start; gap: 5px; }
+        .account-menu button { border: 0; border-radius: 5px; padding: 8px; color: #53647a; background: transparent; text-align: left; font-size: .7rem; }
+        .account-menu button:first-child { color: var(--navy); background: #edf3f8; font-weight: 800; }
+        .admin-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .stat { border: 1px solid var(--line); border-radius: 6px; padding: 9px; }
+        .stat b { display: block; color: var(--navy); font-size: 1rem; }
+        .stat span { color: var(--muted); font-size: .63rem; }
+        .hidden { display: none !important; }
+        .flow { margin-top: 18px; padding: 18px; }
+        .flow p { margin: 0; color: var(--muted); font-size: .86rem; }
+        .flow strong { color: var(--navy); }
+        .flow-chain { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 13px; }
+        .flow-chain span { border: 1px solid var(--line); border-radius: 99px; padding: 6px 10px; background: var(--wash); font-size: .75rem; }
+        .flow-chain b { color: var(--teal); }
+        @media (max-width: 760px) {
+            .page { width: min(100% - 20px, 640px); margin-top: 16px; }
+            .layout { grid-template-columns: 1fr; }
+            .sitemap { order: 2; }
+            .viewport { min-height: 670px; padding: 8px; }
+            .wire-content { width: calc(100% - 24px); margin-top: 14px; }
+            .wire-content.narrow { width: calc(100% - 24px); }
+            .wire-header { padding: 9px 12px; }
+            .wire-nav { gap: 6px; }
+            .hero-block { min-height: 140px; }
+            .grid.five { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 500px) {
+            .wire-nav { display: none; }
+            .wire-header { justify-content: space-between; }
+            .wire-content { width: calc(100% - 20px); }
+            .hero-block, .detail-grid, .filters, .two-col, .account-grid { grid-template-columns: 1fr; }
+            .hero-block .placeholder { min-height: 75px; }
+            .detail-grid .placeholder { min-height: 150px; }
+            .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .trust-strip { grid-template-columns: 1fr; }
+            .admin-grid { grid-template-columns: repeat(2, 1fr); }
+            .account-menu { grid-template-columns: repeat(2, 1fr); }
+            .wire-footer { padding: 10px 12px; }
+        }
+    </style>
+</head>
+<body>
+<main class="page">
+    <header class="masthead">
+        <div>
+            <p class="eyebrow">Gate 0 · Product &amp; design discovery</p>
+            <h1>Sitemap &amp; responsive wireframes</h1>
+            <p class="subtitle">A navigable, low-fidelity prototype of the shared five-section storefront, checkout, customer account, and admin dashboard.</p>
+        </div>
+        <span class="draft-badge">DRAFT · OWNER APPROVAL REQUIRED</span>
+    </header>
+
+    <p class="notice"><strong>Review status:</strong> These are proposed flows and layout structures to accelerate review. They are not an approved visual design, final policy, or production interface. Confirm product, payment, shipping, refund, support, and access rules in the <a href="decision-register.md">Gate 0 decision register</a>.</p>
+
+    <div class="layout">
+        <aside class="panel sitemap" aria-labelledby="sitemap-title">
+            <h2 id="sitemap-title">Proposed sitemap</h2>
+            <ul class="tree">
+                <li><button class="icon-btn branch" data-screen="home">Home</button>
+                    <ul>
+                        <li><span class="branch">Catalog sections</span>
+                            <ul>
+                                <li><a href="#preview" data-screen="catalog">Courses</a></li>
+                                <li><a href="#preview" data-screen="catalog">Ready Websites</a></li>
+                                <li><a href="#preview" data-screen="catalog">Official Software</a></li>
+                                <li><a href="#preview" data-screen="catalog">Books</a></li>
+                                <li><a href="#preview" data-screen="catalog">Cyber-Security Devices</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="#preview" data-screen="product">Product detail</a></li>
+                        <li><a href="#preview" data-screen="cart">Cart</a></li>
+                        <li><a href="#preview" data-screen="checkout">Checkout</a></li>
+                        <li><span class="branch">Customer account</span>
+                            <ul>
+                                <li><a href="#preview" data-screen="account">Dashboard &amp; orders</a></li>
+                                <li><a href="#preview" data-screen="account">Addresses</a></li>
+                                <li><a href="#preview" data-screen="account">Downloads &amp; courses</a></li>
+                                <li><a href="#preview" data-screen="account">Profile &amp; security</a></li>
+                            </ul>
+                        </li>
+                        <li><span class="branch">Administration · role protected</span>
+                            <ul>
+                                <li><a href="#preview" data-screen="admin">Operations dashboard</a></li>
+                                <li><a href="#preview" data-screen="admin">Catalog &amp; inventory</a></li>
+                                <li><a href="#preview" data-screen="admin">Orders &amp; payments</a></li>
+                                <li><a href="#preview" data-screen="admin">Files &amp; content</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+            <p class="sitemap-note">Policy pages, search, support, authentication, reviews, and license management are cross-cutting or pending decisions and are not shown as approved requirements.</p>
+        </aside>
+
+        <section class="panel preview" id="preview" aria-labelledby="preview-title">
+            <div class="preview-head">
+                <h2 id="preview-title">Clickable screen sketches</h2>
+                <div class="device-tabs" role="group" aria-label="Preview viewport">
+                    <button type="button" data-device="desktop" aria-pressed="true">Desktop · 1024px</button>
+                    <button type="button" data-device="mobile" aria-pressed="false">Mobile · 375px</button>
+                </div>
+            </div>
+            <div class="screen-tabs" role="group" aria-label="Choose a wireframe screen">
+                <button type="button" data-screen="home" aria-pressed="true">Home</button>
+                <button type="button" data-screen="catalog" aria-pressed="false">Catalog</button>
+                <button type="button" data-screen="product" aria-pressed="false">Product</button>
+                <button type="button" data-screen="cart" aria-pressed="false">Cart</button>
+                <button type="button" data-screen="checkout" aria-pressed="false">Checkout</button>
+                <button type="button" data-screen="account" aria-pressed="false">Account</button>
+                <button type="button" data-screen="admin" aria-pressed="false">Admin</button>
+            </div>
+            <p class="device-caption" id="device-caption">Desktop layout sketch · 1024px target · exact breakpoints and visual tokens require approval.</p>
+            <div class="viewport" data-device="desktop">
+                <div class="wireframe">
+                    <header class="wire-header">
+                        <span class="brand">HELPYARD.STORE</span>
+                        <nav class="wire-nav" aria-label="Store sections">
+                            <button data-screen="catalog">Courses</button><button data-screen="catalog">Websites</button>
+                            <button data-screen="catalog">Software</button><button data-screen="catalog">Books</button>
+                            <button data-screen="catalog">Devices</button>
+                        </nav>
+                        <div class="wire-actions">
+                            <button class="icon-btn" data-screen="account">Account</button>
+                            <button class="action secondary" data-screen="cart" aria-label="View cart">Cart · 0</button>
+                        </div>
+                    </header>
+
+                    <section class="wire-screen" data-view="home">
+                        <div class="wire-content">
+                            <div class="block hero-block">
+                                <div><span class="block-label">Hero · shared marketplace</span><h3>Learn, build, and secure your next idea.</h3><p>One trusted place for courses, software, websites, books, and security devices.</p><div class="button-row"><button class="action" data-screen="catalog">Explore the catalog</button><button class="action secondary" data-screen="catalog">Browse courses</button></div></div>
+                                <div class="placeholder">Featured product / learning illustration</div>
+                            </div>
+                            <div class="trust-strip"><span>Secure checkout · SSLCOMMERZ</span><span>Protected digital access</span><span>Customer support · details pending</span></div>
+                            <div class="section-label"><h3>Five sections, one platform</h3><span>Illustrative category tiles</span></div>
+                            <div class="grid five">
+                                <div class="product"><div class="placeholder">Courses</div><strong>Learn by doing</strong><button class="action secondary" data-screen="catalog">Explore</button></div>
+                                <div class="product"><div class="placeholder">Ready Websites</div><strong>Launch faster</strong><button class="action secondary" data-screen="catalog">Explore</button></div>
+                                <div class="product"><div class="placeholder">Official Software</div><strong>Tools for work</strong><button class="action secondary" data-screen="catalog">Explore</button></div>
+                                <div class="product"><div class="placeholder">Books</div><strong>Knowledge on demand</strong><button class="action secondary" data-screen="catalog">Explore</button></div>
+                                <div class="product"><div class="placeholder">Security Devices</div><strong>Protect your space</strong><button class="action secondary" data-screen="catalog">Explore</button></div>
+                            </div>
+                            <div class="section-label"><h3>Featured products</h3><span>Verified data only</span></div>
+                            <div class="grid"><div class="product"><div class="placeholder">Product image</div><strong>Featured course</strong><small>BDT · price from catalog</small><button class="action" data-screen="product">View product</button></div><div class="product"><div class="placeholder">Product image</div><strong>Website starter</strong><small>Delivery details pending</small><button class="action" data-screen="product">View product</button></div><div class="product"><div class="placeholder">Product image</div><strong>Security device</strong><small>Stock shown from server</small><button class="action" data-screen="product">View product</button></div></div>
+                        </div>
+                        <footer class="wire-footer"><span>About · Support · Policies (approval required)</span><span>Language: English / Bangla proposal · Currency: BDT</span></footer>
+                    </section>
+
+                    <section class="wire-screen hidden" data-view="catalog">
+                        <div class="wire-content">
+                            <span class="block-label">Catalog · section landing / search results</span><h3>Browse products</h3>
+                            <div class="search-row"><div class="fake-input">Search products, topics, and categories</div><button class="action">Search</button></div>
+                            <div class="filters"><aside class="block filter-box"><span class="block-label">Filters</span><p class="copy">Category · product type · price range</p><p class="copy">Availability · delivery type</p><button class="action secondary">Apply filters</button></aside>
+                                <div><div class="section-label"><h3>Catalog results</h3><span>Sort · relevance / newest / price</span></div><div class="grid"><div class="product"><div class="placeholder">Product image</div><strong>Advanced Security Bootcamp</strong><small>Course · from catalog</small><button class="action" data-screen="product">Details</button></div><div class="product"><div class="placeholder">Product image</div><strong>Business Website Starter</strong><small>Website · delivery policy pending</small><button class="action" data-screen="product">Details</button></div><div class="product"><div class="placeholder">Product image</div><strong>Modern E-Commerce Operations</strong><small>Book · protected download</small><button class="action" data-screen="product">Details</button></div></div></div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="wire-screen hidden" data-view="product">
+                        <div class="wire-content">
+                            <p class="copy">Home / Catalog / Product</p>
+                            <div class="detail-grid"><div class="placeholder">Product gallery / responsive media</div><div><span class="block-label">Product type · availability · delivery label</span><h3>Product title</h3><p class="copy">Short summary from product content</p><div class="price">BDT · server-provided price</div><div class="field"><label>Choose option (when needed)</label><div class="fake-input">Option selector · stock availability</div></div><p class="copy">Delivery: digital access / shipment · exact promise requires policy approval.</p><div class="button-row"><button class="action" data-screen="cart">Add to cart</button><button class="action secondary" data-screen="catalog">Back to catalog</button></div></div></div>
+                            <div class="block"><span class="block-label">Product details</span><p class="copy">Description · specifications · what's included · support and return policy placeholders.</p></div>
+                        </div>
+                    </section>
+
+                    <section class="wire-screen hidden" data-view="cart">
+                        <div class="wire-content"><span class="block-label">Cart · prices and stock rechecked by server</span><h3>Your cart</h3>
+                            <div class="two-col"><div class="rows"><div class="row"><span>Product title · selected option</span><span>Quantity − 1 + · BDT price</span></div><div class="row"><span>Second product · digital / physical</span><span>Quantity − 1 + · BDT price</span></div><div class="row muted"><span>Remove unavailable items or adjust stock</span><button class="action secondary">Update cart</button></div></div><aside class="block"><span class="block-label">Order summary</span><p class="row">Subtotal <b>Recalculated server-side</b></p><p class="row">Shipping <b>Based on approved zones</b></p><p class="row">Coupon <b>Policy pending</b></p><p class="row"><b>Total</b><b>BDT · calculated by server</b></p><button class="action" data-screen="checkout">Continue to checkout</button></aside></div>
+                        </div>
+                    </section>
+
+                    <section class="wire-screen hidden" data-view="checkout">
+                        <div class="wire-content narrow"><span class="block-label">Checkout · authenticated customer</span><h3>Secure checkout</h3>
+                            <div class="steps"><span>1 · Account</span><span class="current">2 · Address &amp; delivery</span><span>3 · Payment</span><span>4 · Confirmed</span></div>
+                            <div class="two-col"><div class="block"><span class="block-label">Delivery and contact</span><div class="field"><label>Full name</label><div class="fake-input"></div></div><div class="field"><label>Phone</label><div class="fake-input"></div></div><div class="field"><label>Address</label><div class="fake-input"></div></div><div class="field"><label>City / zone</label><div class="fake-input">Shipping-zone policy pending</div></div><button class="action">Continue to payment</button></div><aside class="block"><span class="block-label">Order summary</span><p class="copy">Items and quantities from cart</p><p class="row">Total · BDT <b>Server-calculated</b></p><p class="copy">Payment shows pending until verified by provider callback.</p></aside></div>
+                        </div>
+                    </section>
+
+                    <section class="wire-screen hidden" data-view="account">
+                        <div class="wire-content"><span class="block-label">Customer account · authenticated</span><h3>Your account</h3>
+                            <div class="account-grid"><nav class="block account-menu" aria-label="Account areas"><button>Overview</button><button>Orders</button><button>Addresses</button><button>Downloads</button><button>Courses</button><button>Licenses · future</button><button>Profile &amp; security</button><button>Notifications · future</button></nav>
+                                <div><div class="admin-grid"><div class="stat"><b>Orders</b><span>Recent orders</span></div><div class="stat"><b>Downloads</b><span>Entitled files</span></div><div class="stat"><b>Courses</b><span>My learning</span></div><div class="stat"><b>Addresses</b><span>Saved delivery</span></div></div><div class="block" style="margin-top:12px"><span class="block-label">Recent activity</span><div class="row">Order number · date · verified server status</div><div class="row">Course title · continue learning</div><div class="row">Protected download · entitlement status</div></div></div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="wire-screen hidden" data-view="admin">
+                        <div class="wire-content"><span class="block-label">Administration · trusted role only</span><h3>Operations dashboard</h3>
+                            <div class="admin-grid"><div class="stat"><b>Orders</b><span>Needs review</span></div><div class="stat"><b>Payments</b><span>Review queue</span></div><div class="stat"><b>Inventory</b><span>Low stock</span></div><div class="stat"><b>Files</b><span>Active assets</span></div></div>
+                            <div class="section-label"><h3>Operations</h3><span>Role permissions and audit trail required</span></div>
+                            <div class="grid"><div class="block"><span class="block-label">Catalog &amp; inventory</span><p class="copy">Products · categories · prices · stock</p><button class="action">Manage catalog</button></div><div class="block"><span class="block-label">Orders &amp; payments</span><p class="copy">Fulfillment · payment review · exceptions</p><button class="action">Review orders</button></div><div class="block"><span class="block-label">Private files &amp; content</span><p class="copy">Upload · access grants · revoke · course authoring</p><button class="action">Manage content</button></div></div>
+                            <div class="block"><span class="block-label">Recent audited changes</span><div class="row">Time · actor · action · affected record</div><div class="row">Restricted to authorized administrators</div></div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <section class="panel flow" aria-labelledby="flow-title">
+        <h2 id="flow-title">Primary customer flow · proposed</h2>
+        <p>Browse a section → review product and delivery details → add to cart → sign in or create account → choose an owned address / shipping option → pay through the configured provider → wait for server-verified status → access the appropriate fulfillment path.</p>
+        <div class="flow-chain" aria-label="Purchase flow">
+            <span>Discover</span><b>→</b><span>Product detail</span><b>→</b><span>Cart</span><b>→</b><span>Address &amp; delivery</span><b>→</b><span>Payment</span><b>→</b><span>Verified order</span><b>→</b><span>Download / course / shipment</span>
+        </div>
+    </section>
+</main>
+<script>
+    (() => {
+        const viewport = document.querySelector('.viewport');
+        const caption = document.querySelector('#device-caption');
+        const screenButtons = document.querySelectorAll('[data-screen]');
+        const deviceButtons = document.querySelectorAll('.device-tabs button[data-device]');
+
+        function showScreen(name) {
+            document.querySelectorAll('.wire-screen').forEach((screen) => {
+                screen.classList.toggle('hidden', screen.dataset.view !== name);
+            });
+            document.querySelectorAll('.screen-tabs button').forEach((button) => {
+                button.setAttribute('aria-pressed', String(button.dataset.screen === name));
+            });
+        }
+
+        screenButtons.forEach((button) => {
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                showScreen(button.dataset.screen);
+            });
+        });
+
+        deviceButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                viewport.dataset.device = button.dataset.device;
+                deviceButtons.forEach((choice) => {
+                    choice.setAttribute('aria-pressed', String(choice === button));
+                });
+                caption.textContent = button.dataset.device === 'mobile'
+                    ? 'Mobile layout sketch · 375px target · exact breakpoints and visual tokens require approval.'
+                    : 'Desktop layout sketch · 1024px target · exact breakpoints and visual tokens require approval.';
+            });
+        });
+    })();
+</script>
+</body>
+</html>
