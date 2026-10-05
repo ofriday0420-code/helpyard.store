@@ -15,6 +15,7 @@ use Helpyard\App\Controllers\DownloadController;
 use Helpyard\App\Controllers\CourseController;
 use Helpyard\App\Controllers\AdminFileController;
 use Helpyard\App\Controllers\AdminCatalogController;
+use Helpyard\App\Controllers\AdminOrderController;
 use Helpyard\App\Repositories\CatalogRepository;
 use Helpyard\App\Core\Response;
 use Helpyard\App\Core\Router;
@@ -348,6 +349,10 @@ try {
     if ((new AdminCatalogController([]))->index()->status() !== 303) {
         throw new RuntimeException('Catalog administration should require an authenticated administrator.');
     }
+    $adminOrders = new AdminOrderController([]);
+    if ($adminOrders->index()->status() !== 303 || $adminOrders->show(['id' => '1'])->status() !== 303) {
+        throw new RuntimeException('Order administration should require an authenticated administrator.');
+    }
     if ((new DownloadController([], sys_get_temp_dir()))->index()->status() !== 303) {
         throw new RuntimeException('The customer downloads page should require authentication.');
     }
@@ -381,7 +386,13 @@ try {
     ) {
         throw new RuntimeException('Customer accounts must not access catalog administration.');
     }
+    if ($adminOrders->index()->status() !== 403 || $adminOrders->show(['id' => '1'])->status() !== 403) {
+        throw new RuntimeException('Customer accounts must not access order administration.');
+    }
     $_SESSION['user_role'] = 'admin';
+    if ($adminOrders->show(['id' => 'not-an-id'])->status() !== 404) {
+        throw new RuntimeException('Invalid order administration identifiers should be rejected.');
+    }
     if ($adminFiles->upload([], new Request(
         ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/admin/files'],
         [],
