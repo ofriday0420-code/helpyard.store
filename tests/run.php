@@ -7,6 +7,7 @@ use Helpyard\App\Core\Request;
 use Helpyard\App\Core\SqlScript;
 use Helpyard\App\Controllers\CatalogController;
 use Helpyard\App\Controllers\AuthController;
+use Helpyard\App\Controllers\CartController;
 use Helpyard\App\Repositories\CatalogRepository;
 use Helpyard\App\Core\Response;
 use Helpyard\App\Core\Router;
@@ -72,6 +73,15 @@ try {
         throw new RuntimeException('Search wildcard characters were not escaped.');
     }
 
+    if (CartController::positiveInteger('1', 99) !== 1
+        || CartController::positiveInteger('99', 99) !== 99
+        || CartController::positiveInteger('0', 99) !== null
+        || CartController::positiveInteger('100', 99) !== null
+        || CartController::positiveInteger(['1'], 99) !== null
+    ) {
+        throw new RuntimeException('Cart quantities must be positive integers capped at 99.');
+    }
+
     if (AuthController::validateRegistration('Customer Name', 'customer@example.com', 'long-enough-password') !== []) {
         throw new RuntimeException('Valid customer registration details were rejected.');
     }
@@ -101,6 +111,13 @@ try {
         || SessionSecurity::verifyCsrfToken('invalid-token')
     ) {
         throw new RuntimeException('CSRF token generation or validation failed.');
+    }
+    if ((new CartController([]))->addItem([], new Request(
+        ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/cart/items'],
+        [],
+        ['csrf_token' => 'invalid-token', 'product_id' => '1', 'quantity' => '1']
+    ))->status() !== 400) {
+        throw new RuntimeException('Cart mutations without a valid CSRF token should be rejected.');
     }
 
     $router = new Router();
@@ -133,7 +150,7 @@ try {
         }
     }
 
-    echo "Environment, SQL, routing, catalog, and authentication security tests passed.\n";
+    echo "Environment, SQL, routing, catalog, cart, and authentication security tests passed.\n";
 } finally {
     unlink($file);
     putenv($loadedName);
