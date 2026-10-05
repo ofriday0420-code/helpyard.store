@@ -1,10 +1,60 @@
 # Next-step implementation plan
 
-The next unfinished milestone in the Helpyard.store New Implementation Plan
-(version 2.0, 05 October 2026) is the remaining P1 operator tooling. The first
-customer course-learning flow and private-file management are implemented;
-this slice completes product/category maintenance and inventory controls with
-audited staff-only operations.
+The active milestone in the Helpyard.store New Implementation Plan (version
+2.0, 05 October 2026) is Gate 0. Do not skip its requirements/design review and
+database confidence checks to add more feature surface. The Gate 0 decision
+register and sitemap/wireframe draft are in `docs/gate-0/`; owner approval is
+still pending.
+
+## Gate 0 acceptance and current evidence
+
+- Proposed product, fulfillment, email, support, hosting, and role decisions
+  are recorded in `docs/gate-0/decision-register.md`. They are draft proposals,
+  not approved business or legal policy.
+- The sitemap and clickable low-fidelity desktop/mobile wireframe draft is
+  `docs/gate-0/sitemap-and-wireframes.html`; visual and product-owner approval
+  remain outstanding.
+- `.github/workflows/ci.yml` provisions MySQL 8.4 and PHP 8.3 with
+  `pdo_mysql`/`fileinfo`/`pcntl`, lints application PHP, runs the existing tests,
+  applies migrations to a clean database, seeds it, reruns migrations, and
+  invokes `tests/mysql_integration.php`.
+- The MySQL integration test checks migration idempotency, the expected
+  migration set and seeded catalog reads; hidden-category filtering; actual
+  cart checkout snapshots and clearing; simultaneous checkouts contending for
+  one unit; exact-once expired-reservation restoration; risky, late, repeated,
+  failed, wrong-amount, and wrong-currency payment validation; private-file
+  entitlement, customer isolation, and revocation; paid course enrollment,
+  access isolation, and lesson-progress idempotency; and the physical shipment
+  lifecycle.
+- `tests/mysql_integration.php` creates fixture rows and is intentionally
+  restricted to database names ending in `_test`; run it only against an
+  isolated test database.
+- Previously, local `php tests/run.php`, PHP lint, `git diff --check`, and the
+  original integration suite passed against a disposable WSL MariaDB 11.8.8
+  instance after all 14 migrations and seeders were applied. The expanded
+  checkout/payment integration cases are now under validation. The Windows
+  PHP CLI has no PDO drivers and Docker is unavailable; the MySQL 8.4 GitHub
+  Actions workflow still needs a hosted run after these changes are pushed.
+  SSLCOMMERZ sandbox callback behavior, upload content inspection, and
+  restore/load behavior remain unverified.
+- Gate 0 remains open until product-owner decisions and the draft flows are
+  approved, and hosted CI demonstrates clean migrations and integration tests.
+
+## Next work after Gate 0
+
+1. Run the expanded database-backed checkout/stock and payment callback cases
+   locally and in hosted MySQL 8.4 CI; then fix any defects they expose.
+2. Run the SSLCOMMERZ sandbox success, cancel, fail, repeat, late, and risk
+   matrix. Repository-level verified-validation tests do not replace a real
+   provider sandbox run.
+3. Continue in the v2 order: complete admin order/payment-review operations,
+   design-system and commerce scope, fulfillment, SEO/accessibility, hardening,
+   then staging and production acceptance.
+4. Defer PWA/native work until API v1 is stable and documented.
+
+Do not claim a release gate complete based only on a percentage estimate. Each
+gate requires its stated evidence and an accountable owner’s approval where
+applicable.
 
 ## Admin catalog-management acceptance
 
@@ -74,8 +124,8 @@ audited staff-only operations.
   process; there is no public admin registration.
 - A MySQL/MariaDB integration environment is required to validate migrations,
   transaction locking, ownership isolation, and shipment updates. The current
-  local PHP runtime has no PDO database driver, so this remains an explicit
-  external verification gate.
+  local PHP runtime has PDO but has no available database drivers (including
+  `pdo_mysql`), so this remains an explicit external verification gate.
 - Payment sandbox validation remains a separate prerequisite before any
   production launch. Fulfillment must only begin from a verified paid order.
 - Do not begin PWA/native mobile work until the web platform and REST API are
