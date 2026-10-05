@@ -7,13 +7,14 @@ class Request
     public function __construct(
         private array $server,
         private array $query = [],
-        private array $body = []
+        private array $body = [],
+        private array $files = []
     ) {
     }
 
     public static function fromGlobals(): self
     {
-        return new self($_SERVER, $_GET, $_POST);
+        return new self($_SERVER, $_GET, $_POST, $_FILES);
     }
 
     public function method(): string
@@ -36,6 +37,11 @@ class Request
     public function body(): array
     {
         return $this->body;
+    }
+
+    public function files(): array
+    {
+        return $this->files;
     }
 
     public function remoteAddress(): string
