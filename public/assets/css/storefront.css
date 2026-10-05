@@ -238,6 +238,21 @@ h1, h2, h3 { font-family: "Manrope", Arial, sans-serif; }
 .cart-empty > p { color: var(--muted); }
 .cart-feedback { margin: 12px 0; color: var(--green); font-size: 13px; }
 .cart-feedback.is-error { color: #873d33; }
+.admin-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.admin-edit-form { margin: 18px 0; padding: 18px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; gap: 14px; border: 1px solid var(--line); border-radius: 12px; background: white; }
+.admin-edit-form label { display: grid; gap: 6px; color: #36463d; font-size: 12px; font-weight: 700; }
+.admin-edit-form input:not([type="checkbox"]), .admin-edit-form select, .admin-edit-form textarea { width: 100%; min-height: 43px; padding: 9px 11px; border: 1px solid #dce4dc; border-radius: 8px; background: white; color: var(--ink); font: inherit; font-size: 14px; }
+.admin-edit-form textarea { min-height: 76px; resize: vertical; }
+.admin-edit-form input:focus, .admin-edit-form select:focus, .admin-edit-form textarea:focus { border-color: var(--green); outline: 3px solid rgba(23,107,76,.16); outline-offset: 1px; }
+.admin-edit-form > button, .admin-edit-form > p, .admin-edit-form > span { align-self: center; }
+.admin-edit-form .admin-check { display: flex; align-items: center; gap: 9px; }
+.admin-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--green); }
+.admin-entity-form { grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) auto auto auto; }
+.admin-product-card { margin-block: 16px; padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: white; }
+.admin-product-card > h3 { margin-bottom: 6px; }
+.admin-product-card > p { color: var(--muted); font-size: 13px; }
+.admin-product-card h4 { margin-bottom: 8px; }
+.admin-product-card .admin-edit-form { background: #fbfcfa; }
 .button-secondary { border: 1px solid #cad7cd; background: white; color: var(--green-dark); }
 .button-secondary:hover { border-color: var(--green); }
 .checkout-addresses { min-width: 0; }
@@ -332,6 +347,9 @@ h1, h2, h3 { font-family: "Manrope", Arial, sans-serif; }
     .account-order { grid-template-columns: minmax(0, 1fr) auto; }
     .account-order-state { grid-column: 1; }
     .account-order > strong:last-child { grid-column: 2; grid-row: 1 / span 2; }
+    .admin-edit-form, .admin-entity-form { grid-template-columns: 1fr; }
+    .admin-edit-form { padding: 14px; }
+    .admin-product-card { padding: 15px; }
 }
 
 @media (max-width: 390px) {
