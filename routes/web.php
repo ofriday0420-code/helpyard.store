@@ -5,13 +5,17 @@ use Helpyard\App\Controllers\AuthController;
 use Helpyard\App\Controllers\CartController;
 use Helpyard\App\Controllers\CheckoutController;
 use Helpyard\App\Controllers\PaymentController;
+use Helpyard\App\Controllers\AdminFulfillmentController;
 use Helpyard\App\Core\Router;
 
 $auth = new AuthController($config['database']);
 $cart = new CartController($config['database']);
 $checkout = new CheckoutController($config['database'], $config['payment']);
 $payments = new PaymentController($config['database'], $config['payment']);
+$adminFulfillment = new AdminFulfillmentController($config['database']);
 $webRouter = new Router();
+$webRouter->get('/admin/fulfillment', [$adminFulfillment, 'index']);
+$webRouter->post('/admin/orders/{id}/fulfillment', [$adminFulfillment, 'advance']);
 $webRouter->get('/cart', [$cart, 'show']);
 $webRouter->post('/cart/items', [$cart, 'addItem']);
 $webRouter->post('/cart/items/{id}/update', [$cart, 'updateItem']);
