@@ -226,6 +226,7 @@ class PaymentRepository
                 if ($updateOrder->rowCount() !== 1) {
                     throw new RuntimeException('Could not update the order after payment confirmation.');
                 }
+                $this->grantPaidOrderDownloads((int) $payment['order_id']);
                 $paymentStatus = 'paid';
             } else {
                 if ($order['status'] === 'payment_pending') {
@@ -301,5 +302,18 @@ class PaymentRepository
                 }
             }
         }
+    }
+
+    private function grantPaidOrderDownloads(int $orderId): void
+    {
+        $statement = $this->connection->prepare(
+            'INSERT INTO download_entitlements (order_item_id, product_file_id) '
+            . 'SELECT oi.id, pf.id FROM order_items oi '
+            . 'JOIN product_files pf ON pf.product_id = oi.product_id AND pf.is_active = 1 '
+            . 'WHERE oi.order_id = :order_id '
+            . "AND oi.product_type IN ('digital', 'software', 'book', 'course', 'website') "
+            . 'ON DUPLICATE KEY UPDATE revoked_at = NULL'
+        );
+        $statement->execute(['order_id' => $orderId]);
     }
 }
