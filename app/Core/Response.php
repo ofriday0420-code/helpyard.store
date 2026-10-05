@@ -24,6 +24,11 @@ class Response
             header($name . ': ' . $value);
         }
 
+        if ($this->body instanceof \Closure) {
+            ($this->body)();
+            return;
+        }
+
         if (is_array($this->body) || is_object($this->body)) {
             header('Content-Type: application/json; charset=UTF-8');
             echo json_encode($this->body, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
