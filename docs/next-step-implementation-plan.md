@@ -40,12 +40,12 @@ still pending.
   restore/load behavior remain unverified.
 - Gate 0 remains open until product-owner decisions and the draft flows are
   approved, and hosted CI demonstrates clean migrations and integration tests.
-- A first read-only administrator order console is available at
+- A first administrator order console is available at
   `/admin/orders`, with payment-review orders prioritized and an order detail
   view for customer/order snapshots, payment attempts and provider validation
-  references, and shipment details. It does not mutate payment, order,
-  inventory, or refund state; reconciliation actions remain blocked on an
-  approved business policy.
+  references, shipment details, and audited internal review notes. It does not
+  settle payments, refund, or mutate order/inventory state; reconciliation
+  actions remain blocked on an approved business policy.
 
 ## Next work after Gate 0
 
@@ -142,10 +142,10 @@ applicable.
 
 The current delivery implements the first course schema and customer learning
 flow, CLI-only administrator provisioning, protected product-file upload
-and revocation, audited product/category and inventory management, and a
-read-only administrator order/payment-review console. Payment-review
-resolution, course authoring, email verification/reset, licensing, and
-production acceptance remain incomplete. A MySQL/MariaDB
+and revocation, audited product/category and inventory management, and an
+administrator order/payment-review console with audited internal notes.
+Payment-review resolution, course authoring, email verification/reset,
+licensing, and production acceptance remain incomplete. A MySQL/MariaDB
 integration environment with PHP `pdo_mysql` is still required to validate
 migrations, audit transactions, file entitlements, inventory reservations, and customer ownership
 isolation.
