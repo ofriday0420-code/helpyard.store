@@ -92,7 +92,7 @@
             <input id="home-search-input" name="q" type="search" maxlength="120" placeholder="What are you looking for?" autocomplete="off">
             <button class="button button-primary" type="submit">Search <span aria-hidden="true">→</span></button>
         </form>
-        <div class="product-grid" data-product-list data-api="/api/v1/products" data-limit="4">
+        <div class="product-grid" data-product-list data-api="/api/v1/products" data-csrf="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>" data-limit="4">
             <p class="state-message">Loading products…</p>
         </div>
     </section>
