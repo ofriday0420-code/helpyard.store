@@ -122,7 +122,9 @@ class AuthController
             }
 
             $user = $users->findByEmail($email);
-            if ($user === null || !password_verify($password, $user['password_hash']) || $user['role'] !== 'customer') {
+            if ($user === null || !password_verify($password, $user['password_hash'])
+                || !in_array($user['role'], ['customer', 'admin'], true)
+            ) {
                 $users->recordLoginAttempt($identifierHash);
 
                 return $this->loginFailed($email);
@@ -140,10 +142,10 @@ class AuthController
 
         $_SESSION['user_id'] = (int) $user['id'];
         $_SESSION['user_name'] = $user['name'];
-        $_SESSION['user_role'] = 'customer';
+        $_SESSION['user_role'] = $user['role'];
         unset($_SESSION['csrf_token']);
 
-        return $this->redirect('/account');
+        return $this->redirect($user['role'] === 'admin' ? '/admin/fulfillment' : '/account');
     }
 
     public function logout(array $params, Request $request): Response
