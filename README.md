@@ -1,24 +1,25 @@
 # Helpyard.store
 
-This repository now contains the foundation for the Helpyard.store commerce platform described in the professional implementation plan.
+This repository contains a working storefront, customer account flows, a session-backed cart, and the first authenticated checkout/order flow for the Helpyard.store commerce platform.
 
 ## Current implementation status
 
-This is the first delivery milestone in the plan: engineering foundation and a working PHP MVC-style shell.
+The engineering foundation and initial commerce flows are implemented. Checkout, hosted SSLCOMMERZ callbacks, a reservation cleanup worker, and customer order history are in place; merchant credentials, database integration testing, fulfillment, and production approval are still required.
 
 ### Included
 - MVC-style app structure aligned to the roadmap
 - Route definitions for homepage and API endpoints
 - Configuration for app and database values through environment variables
 - SQL migration and seed files for core commerce tables
-- A small starter home page and API response structure
+- Responsive storefront, database-backed catalog API, and product pages
+- Customer authentication, profile, and saved delivery addresses
+- Cart, authenticated checkout, price/stock revalidation, and order history details
+- Scheduled reservation cleanup command and customer recent-order history
 
 ### Planned next phases
-1. Product type and catalog architecture
-2. Authentication and secure customer dashboard
-3. Cart, checkout, and server-side pricing validation
-4. Payment gateway integration and fulfillment rules
-5. Admin controls, audit logging, and production hardening
+1. Order fulfillment and customer notifications
+2. Admin product, inventory, and payment-review management
+3. Audit logging, integration coverage, deployment, and production hardening
 
 ## Quick start
 
@@ -47,7 +48,9 @@ On Windows, run `php --ini` to find the active `php.ini`. If `pdo_mysql` is not 
 - Migrations are tracked in `schema_migrations`; applied migration files must not be edited. Add a new numbered SQL migration for schema changes.
 - The first authentication slice provides customer registration, login, logout, CSRF-protected forms, session rotation, login throttling, and a protected account page. Email verification and password-reset delivery are not yet enabled because no email provider is configured.
 - The cart is database-backed and associated with a random key held in the server-side session. Product and variant prices and stock are read from the database; add/update/remove forms require CSRF tokens, and requested quantities are capped at 99 and checked against availability. Guest-cart/account-cart merging is not yet implemented.
-- Checkout requires a signed-in customer and an address belonging to that customer. It snapshots the delivery address and product details, recalculates totals from current database prices, reserves stock transactionally, and creates an order in `payment_pending` for 30 minutes. Expired reservations are released when a checkout or order-status request is made; a scheduled cleanup task and payment provider integration are still needed before production use. No payment is captured or implied.
+- Checkout requires a signed-in customer and an address belonging to that customer. It snapshots the delivery address and product details, recalculates totals from current database prices, reserves stock transactionally, and creates an order in `payment_pending` for 30 minutes. Expired reservations are released when a checkout, order-status, verified payment request, or the cleanup worker runs.
+- Schedule `php database/release_expired_reservations.php` to run every few minutes (for example, Windows Task Scheduler or cron) so expired reservations are released even when no customers visit checkout. The worker processes bounded batches, restores inventory, cancels pending payment attempts, and exits non-zero when cleanup fails. The customer account lists the latest 50 orders; fulfillment tracking and notifications are not yet configured.
+- Hosted payment uses SSLCOMMERZ in BDT. It remains disabled unless `SSLCOMMERZ_STORE_ID` and `SSLCOMMERZ_STORE_PASSWORD` are configured; sandbox mode defaults on. Before live use, set real merchant credentials, set `SSLCOMMERZ_SANDBOX=false`, set `APP_URL` to the public HTTPS site, configure the SSLCOMMERZ IPN URL as `/payments/ipn`, run migrations, and complete sandbox and production verification. Both browser returns and IPNs are verified against the provider's server-side validation API before an order is marked paid. Risky, late, or duplicate verified payments are placed into `payment_review` for manual reconciliation. See the [SSLCOMMERZ Hosted Payment API documentation](https://developer.sslcommerz.com/doc/v4/).
 - Customer account holders can update their display name and manage their own saved addresses. Address writes require CSRF tokens; ownership is enforced in every address query, and setting a default address replaces the previous default for that customer.
 - MySQL DDL statements are not fully transactional. If a migration fails partway, inspect the database before retrying; current schema statements use `CREATE TABLE IF NOT EXISTS` for safe reruns.
 
