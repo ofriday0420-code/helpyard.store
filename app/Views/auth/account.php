@@ -28,6 +28,7 @@
             <button class="button button-primary" type="submit">Update profile</button>
         </form>
         <a class="button button-primary" href="/account/addresses">Manage addresses <span aria-hidden="true">→</span></a>
+        <a class="button button-secondary" href="/account/downloads">My downloads <span aria-hidden="true">→</span></a>
         <section class="account-orders" aria-labelledby="account-orders-title">
             <h2 id="account-orders-title">Recent orders</h2>
             <?php if ($orders === []): ?>
