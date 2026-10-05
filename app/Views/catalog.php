@@ -24,7 +24,7 @@
             </select>
         </label>
     </section>
-    <div class="product-grid" data-product-list data-api="/api/v1/products" data-category="<?= htmlspecialchars($category, ENT_QUOTES, 'UTF-8') ?>" data-type="<?= htmlspecialchars($type, ENT_QUOTES, 'UTF-8') ?>">
+    <div class="product-grid" data-product-list data-api="/api/v1/products" data-csrf="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>" data-category="<?= htmlspecialchars($category, ENT_QUOTES, 'UTF-8') ?>" data-type="<?= htmlspecialchars($type, ENT_QUOTES, 'UTF-8') ?>">
         <p class="state-message">Loading products…</p>
     </div>
     <nav class="pagination" data-pagination aria-label="Product pages"></nav>
