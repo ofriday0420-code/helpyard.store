@@ -26,6 +26,7 @@ $adminOrders = new AdminOrderController($config['database']);
 $webRouter = new Router();
 $webRouter->get('/admin/orders', [$adminOrders, 'index']);
 $webRouter->get('/admin/orders/{id}', [$adminOrders, 'show']);
+$webRouter->post('/admin/orders/{id}/notes', [$adminOrders, 'addNote']);
 $webRouter->get('/admin/catalog', [$adminCatalog, 'index']);
 $webRouter->post('/admin/catalog/categories', [$adminCatalog, 'createCategory']);
 $webRouter->post('/admin/catalog/categories/{id}', [$adminCatalog, 'updateCategory']);
