@@ -44,7 +44,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.3"
-          extensions: fileinfo, pdo_mysql, pcntl
+          extensions: fileinfo, pdo_mysql
           coverage: none
 
       - name: Lint PHP sources
@@ -62,5 +62,5 @@ jobs:
       - name: Verify migrations are repeatable
         run: php database/migrate.php
 
-      - name: Verify checkout, payment, access, course, and fulfillment behavior
+      - name: Verify checkout, payment review, access, course, and fulfillment
         run: php tests/mysql_integration.php
