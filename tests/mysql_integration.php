@@ -25,7 +25,7 @@ if ($runner->migrate() !== []) {
 }
 
 $migrationCount = (int) $connection->query('SELECT COUNT(*) FROM schema_migrations')->fetchColumn();
-if ($migrationCount < 14) {
+if ($migrationCount < 15) {
     throw new RuntimeException('The full migration set was not applied.');
 }
 
@@ -550,6 +550,25 @@ if ($riskQueueEntry === null || $riskQueueEntry['status'] !== 'payment_review'
 ) {
     throw new RuntimeException('Administrator order review did not expose the order, customer, item, and validated-payment evidence.');
 }
+if (!$adminOrders->addReviewNote($riskOrderId, $adminId, 'CI review note ' . $fixture)) {
+    throw new RuntimeException('Administrator order review notes could not be recorded.');
+}
+$riskOrderDetails = $adminOrders->find($riskOrderId);
+if ($riskOrderDetails === null
+    || count($riskOrderDetails['review_notes']) !== 1
+    || $riskOrderDetails['review_notes'][0]['note'] !== 'CI review note ' . $fixture
+    || $riskOrderDetails['review_notes'][0]['author_email'] === ''
+) {
+    throw new RuntimeException('Administrator order review notes were not exposed with their author evidence.');
+}
+$auditLookup = $connection->prepare(
+    "SELECT COUNT(*) FROM admin_audit_logs WHERE actor_user_id = :admin_id "
+    . "AND action = 'order.review_note_added' AND subject_type = 'order' AND subject_id = :order_id"
+);
+$auditLookup->execute(['admin_id' => $adminId, 'order_id' => $riskOrderId]);
+if ((int) $auditLookup->fetchColumn() !== 1) {
+    throw new RuntimeException('Administrator order review notes were not audited.');
+}
 $stockQuery->execute(['product_id' => $physicalProduct['id']]);
 $stockAfterRisk = (int) $stockQuery->fetchColumn();
 $duplicateRisk = $payments->confirmValidatedPayment($riskValidation);
@@ -642,4 +661,4 @@ if ($lateResult['order_id'] !== $lateOrderId || $lateResult['already_processed']
     throw new RuntimeException('A late verified payment was not isolated for manual review without double-restoring stock.');
 }
 
-echo "MySQL integration checks passed: migrations, catalog visibility, concurrent checkout stock safety, payment idempotency/risk/late callbacks and admin review, file access/revocation, course ownership/progress, and shipment lifecycle.\n";
+echo "MySQL integration checks passed: migrations, catalog visibility, concurrent checkout stock safety, payment idempotency/risk/late callbacks and admin review notes, file access/revocation, course ownership/progress, and shipment lifecycle.\n";
