@@ -43,7 +43,7 @@
                                 <button class="button button-secondary" type="submit">Update</button>
                             </form>
                         <?php else: ?>
-                            <p class="cart-feedback is-error" role="alert">This product option is no longer available. Remove it from your cart.</p>
+                            <p class="cart-feedback is-error" role="alert">This product is no longer available. Remove it from your cart.</p>
                         <?php endif; ?>
                         <div class="cart-item-total">
                             <strong><?= (int) $item['is_available'] === 1
@@ -54,7 +54,7 @@
                                 <button class="text-link" type="submit">Remove</button>
                             </form>
                         </div>
-                        <?php if ((int) $item['quantity'] > (int) $item['stock_quantity']): ?>
+                        <?php if ((int) $item['is_available'] === 1 && (int) $item['quantity'] > (int) $item['stock_quantity']): ?>
                             <p class="cart-feedback is-error" role="alert">Only <?= (int) $item['stock_quantity'] ?> currently available. Update this quantity before continuing.</p>
                         <?php endif; ?>
                     </article>
