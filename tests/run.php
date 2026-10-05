@@ -287,6 +287,13 @@ try {
     ) {
         throw new RuntimeException('Payment amounts or hosted gateway URLs were not validated safely.');
     }
+    if (AdminOrderController::validateReviewNote('  Payment checked with provider support.  ') !== 'Payment checked with provider support.'
+        || AdminOrderController::validateReviewNote('no') !== null
+        || AdminOrderController::validateReviewNote(str_repeat('x', 2001)) !== null
+        || AdminOrderController::validateReviewNote("bad\0note") !== null
+    ) {
+        throw new RuntimeException('Administrator order review notes were not validated safely.');
+    }
 
     if (AuthController::validateRegistration('Customer Name', 'customer@example.com', 'long-enough-password') !== []) {
         throw new RuntimeException('Valid customer registration details were rejected.');
@@ -389,9 +396,23 @@ try {
     if ($adminOrders->index()->status() !== 403 || $adminOrders->show(['id' => '1'])->status() !== 403) {
         throw new RuntimeException('Customer accounts must not access order administration.');
     }
+    if ($adminOrders->addNote(['id' => '1'], new Request(
+        ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/admin/orders/1/notes'],
+        [],
+        ['csrf_token' => 'invalid-token', 'note' => 'Customer should not add notes.']
+    ))->status() !== 403) {
+        throw new RuntimeException('Customer accounts must not add administrator order notes.');
+    }
     $_SESSION['user_role'] = 'admin';
     if ($adminOrders->show(['id' => 'not-an-id'])->status() !== 404) {
         throw new RuntimeException('Invalid order administration identifiers should be rejected.');
+    }
+    if ($adminOrders->addNote(['id' => '1'], new Request(
+        ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/admin/orders/1/notes'],
+        [],
+        ['csrf_token' => 'invalid-token', 'note' => 'Invalid CSRF should fail.']
+    ))->status() !== 400) {
+        throw new RuntimeException('Order review notes without a valid CSRF token should be rejected.');
     }
     if ($adminFiles->upload([], new Request(
         ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/admin/files'],
@@ -427,6 +448,13 @@ try {
         ['csrf_token' => $adminCsrfToken]
     ))->status() !== 303 || ($_SESSION['admin_catalog_error'] ?? '') === '') {
         throw new RuntimeException('Invalid catalog form data should be rejected before accessing the database.');
+    }
+    if ($adminOrders->addNote(['id' => '1'], new Request(
+        ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/admin/orders/1/notes'],
+        [],
+        ['csrf_token' => $adminCsrfToken, 'note' => 'x']
+    ))->status() !== 303 || ($_SESSION['admin_order_error'] ?? '') === '') {
+        throw new RuntimeException('Invalid order review notes should be rejected before accessing the database.');
     }
     $_SESSION['user_role'] = 'customer';
     if ((new DownloadController([], sys_get_temp_dir()))->download(['id' => '../other'], new Request(
