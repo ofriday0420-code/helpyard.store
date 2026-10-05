@@ -6,5 +6,7 @@ vendor/
 /.phpunit.result.cache
 /logs/
 /tmp/
+/storage/private/*
+!/storage/private/.gitkeep
 .DS_Store
 Thumbs.db
