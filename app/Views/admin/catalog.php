@@ -6,11 +6,12 @@
     <section class="catalog-heading">
         <p class="eyebrow">Administration</p>
         <h1>Catalog management</h1>
-        <p>Create and maintain categories, product listings, prices, and inventory. Product types cannot be changed after creation so paid-order records remain consistent.</p>
         <div class="admin-actions">
-            <a class="button button-secondary" href="/admin/fulfillment">Order fulfillment</a>
-            <a class="button button-secondary" href="/admin/files">Private product files</a>
+            <a class="button button-secondary" href="/admin/orders">Order administration</a>
+            <a class="button button-secondary" href="/admin/fulfillment">Physical fulfillment</a>
+            <a class="button button-secondary" href="/admin/files">Manage private product files</a>
         </div>
+        <p>Create and maintain categories, product listings, prices, and inventory. Product types cannot be changed after creation so paid-order records remain consistent.</p>
     </section>
     <?php if ($notice !== ''): ?><p class="cart-feedback" role="status"><?= htmlspecialchars($notice, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p><?php endif; ?>
     <?php if ($error !== ''): ?><p class="cart-feedback is-error" role="alert"><?= htmlspecialchars($error, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p><?php endif; ?>
