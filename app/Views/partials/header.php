@@ -13,6 +13,7 @@
             <a href="/software">Software</a>
             <a href="/books">Books</a>
             <a href="/devices">Security Devices</a>
+            <a href="/cart">Cart</a>
             <a href="/login">Sign in</a>
         </nav>
         <a class="header-action" href="/account">My account <span aria-hidden="true">↗</span></a>
