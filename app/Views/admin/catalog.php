@@ -114,6 +114,7 @@
                         <label class="admin-check"><input name="is_active" type="checkbox" value="1" <?= (int) $product['is_active'] === 1 ? 'checked' : '' ?>> Active in storefront</label>
                         <button class="button button-secondary" type="submit">Save product</button>
                     </form>
+                    <p><a class="button button-secondary" href="/admin/catalog/products/<?= (int) $product['id'] ?>/images">Manage product images</a></p>
                     <?php if ($product['variants'] !== []): ?>
                         <h4>Product option inventory</h4>
                         <?php foreach ($product['variants'] as $variant): ?>
