@@ -79,6 +79,16 @@ class CatalogRepository
         return $query->fetchAll();
     }
 
+    public function sitemapProducts(): array
+    {
+        return $this->connection->query(
+            'SELECT p.slug, p.updated_at FROM products p '
+            . 'LEFT JOIN categories c ON c.id = p.category_id '
+            . 'WHERE p.is_active = 1 AND (p.category_id IS NULL OR c.is_active = 1) '
+            . 'ORDER BY p.id DESC'
+        )->fetchAll();
+    }
+
     public function findActiveProductBySlug(string $slug): ?array
     {
         $productQuery = $this->connection->prepare(
