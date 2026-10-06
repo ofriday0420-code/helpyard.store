@@ -1,0 +1,272 @@
+openapi: 3.1.0
+info:
+  title: Helpyard.store Public Catalog API
+  version: 1.0.0
+  description: >-
+    Contract for the public catalog endpoints currently implemented by Helpyard.store.
+    Customer authentication, cart, checkout, and order APIs are not part of this contract
+    because the application currently exposes those flows through web routes.
+servers:
+  - url: /
+paths:
+  /api/v1/openapi.yaml:
+    get:
+      operationId: getApiSpecification
+      summary: Download this OpenAPI specification
+      responses:
+        '200':
+          description: OpenAPI 3.1 YAML document.
+          content:
+            application/yaml:
+              schema:
+                type: string
+                description: Serialized OpenAPI document.
+        '503':
+          description: API documentation is temporarily unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/v1/products:
+    get:
+      operationId: listProducts
+      summary: List active products
+      description: >-
+        Returns active products, excluding products assigned to hidden categories.
+        Search matches product name, descriptions, and category name. Results are ordered
+        newest product ID first.
+      parameters:
+        - name: category
+          in: query
+          description: Category slug.
+          schema:
+            type: string
+            pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+        - name: type
+          in: query
+          description: Product type.
+          schema:
+            type: string
+            enum: [physical, digital, software, course, book, website]
+        - name: q
+          in: query
+          description: Search text, up to 120 characters.
+          schema:
+            type: string
+            maxLength: 120
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          description: Page size is capped at 50.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: Product page.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, count, products, pagination]
+                properties:
+                  success:
+                    const: true
+                  count:
+                    type: integer
+                  products:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductSummary'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/products/{slug}:
+    get:
+      operationId: getProduct
+      summary: Get an active product
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+      responses:
+        '200':
+          description: Product details, active images, and active variants.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, product]
+                properties:
+                  success:
+                    const: true
+                  product:
+                    $ref: '#/components/schemas/Product'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/categories:
+    get:
+      operationId: listCategories
+      summary: List visible categories
+      description: Product counts include active products only.
+      responses:
+        '200':
+          description: Visible categories.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, categories]
+                properties:
+                  success:
+                    const: true
+                  categories:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+components:
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      description: Lowercase product slug.
+      schema:
+        type: string
+        pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+  responses:
+    BadRequest:
+      description: Invalid filter or search input.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Product does not exist or is not visible.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unavailable:
+      description: Catalog database is unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      required: [success, error]
+      properties:
+        success:
+          const: false
+        error:
+          type: string
+    Pagination:
+      type: object
+      required: [page, per_page, total, last_page]
+      properties:
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+        last_page:
+          type: integer
+    Category:
+      type: object
+      required: [id, name, slug, product_count]
+      properties:
+        id:
+          type: [integer, string]
+        name:
+          type: string
+        slug:
+          type: string
+        product_count:
+          type: [integer, string]
+    ProductSummary:
+      type: object
+      required: [id, name, slug, product_type, short_description, price, compare_price, stock_quantity, has_variants, category_name, category_slug]
+      properties:
+        id:
+          type: [integer, string]
+        name:
+          type: string
+        slug:
+          type: string
+        product_type:
+          type: string
+          enum: [physical, digital, software, course, book, website]
+        short_description:
+          type: [string, 'null']
+        price:
+          type: [number, string]
+          description: Price in BDT; database decimal values may be serialized as strings.
+        compare_price:
+          type: [number, string, 'null']
+        stock_quantity:
+          type: [integer, string]
+        has_variants:
+          description: PDO may serialize this database expression as an integer or string.
+          oneOf:
+            - type: boolean
+            - type: integer
+            - type: string
+        category_name:
+          type: [string, 'null']
+        category_slug:
+          type: [string, 'null']
+    Product:
+      allOf:
+        - $ref: '#/components/schemas/ProductSummary'
+        - type: object
+          required: [description, images, variants]
+          properties:
+            description:
+              type: [string, 'null']
+            images:
+              type: array
+              items:
+                type: object
+                required: [id, image_url, alt_text, sort_order]
+                properties:
+                  id:
+                    type: [integer, string]
+                  image_url:
+                    type: string
+                  alt_text:
+                    type: [string, 'null']
+                  sort_order:
+                    type: [integer, string]
+            variants:
+              type: array
+              items:
+                type: object
+                required: [id, name, sku, price_override, stock_quantity, attributes]
+                properties:
+                  id:
+                    type: [integer, string]
+                  name:
+                    type: string
+                  sku:
+                    type: [string, 'null']
+                  price_override:
+                    type: [number, string, 'null']
+                  stock_quantity:
+                    type: [integer, string]
+                  attributes:
+                    type: [object, 'null']
