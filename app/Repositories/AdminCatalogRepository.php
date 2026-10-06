@@ -234,6 +234,141 @@ class AdminCatalogRepository
         }
     }
 
+    public function productImageWorkspace(int $productId): ?array
+    {
+        $product = $this->connection->prepare(
+            'SELECT id, name, slug FROM products WHERE id = :product_id LIMIT 1'
+        );
+        $product->execute(['product_id' => $productId]);
+        $record = $product->fetch();
+        if ($record === false) {
+            return null;
+        }
+
+        $images = $this->connection->prepare(
+            'SELECT id, image_url, alt_text, sort_order, created_at FROM product_images '
+            . 'WHERE product_id = :product_id ORDER BY sort_order, id'
+        );
+        $images->execute(['product_id' => $productId]);
+        $record['images'] = $images->fetchAll();
+
+        return $record;
+    }
+
+    public function addProductImage(int $productId, string $imageUrl, string $altText, int $adminId): void
+    {
+        $this->connection->beginTransaction();
+        try {
+            $product = $this->connection->prepare('SELECT id, name FROM products WHERE id = :product_id FOR UPDATE');
+            $product->execute(['product_id' => $productId]);
+            $record = $product->fetch();
+            if ($record === false) {
+                throw new AdminCatalogException('That product does not exist.');
+            }
+
+            $count = $this->connection->prepare('SELECT COUNT(*) FROM product_images WHERE product_id = :product_id');
+            $count->execute(['product_id' => $productId]);
+            if ((int) $count->fetchColumn() >= \Helpyard\App\Services\ProductImageUploadService::MAX_IMAGES_PER_PRODUCT) {
+                throw new AdminCatalogException('A product can have up to 12 images. Remove an image before adding another.');
+            }
+
+            $position = $this->connection->prepare(
+                'SELECT COALESCE(MAX(sort_order), 0) + 10 FROM product_images WHERE product_id = :product_id'
+            );
+            $position->execute(['product_id' => $productId]);
+            $sortOrder = (int) $position->fetchColumn();
+            $insert = $this->connection->prepare(
+                'INSERT INTO product_images (product_id, image_url, alt_text, sort_order) '
+                . 'VALUES (:product_id, :image_url, :alt_text, :sort_order)'
+            );
+            $insert->execute([
+                'product_id' => $productId,
+                'image_url' => $imageUrl,
+                'alt_text' => $altText,
+                'sort_order' => $sortOrder,
+            ]);
+            $imageId = (int) $this->connection->lastInsertId();
+            $this->audit($adminId, 'product.image_added', 'product_image', $imageId, [
+                'product_id' => $productId,
+                'product_name' => $record['name'],
+                'image_url' => $imageUrl,
+                'alt_text' => $altText,
+                'sort_order' => $sortOrder,
+            ]);
+            $this->connection->commit();
+        } catch (\Throwable $exception) {
+            $this->rollback();
+            throw $exception;
+        }
+    }
+
+    public function updateProductImageAltText(int $productId, int $imageId, string $altText, int $adminId): bool
+    {
+        $this->connection->beginTransaction();
+        try {
+            $lookup = $this->connection->prepare(
+                'SELECT pi.product_id, pi.image_url, pi.alt_text, p.name AS product_name '
+                . 'FROM product_images pi JOIN products p ON p.id = pi.product_id '
+                . 'WHERE pi.product_id = :product_id AND pi.id = :image_id FOR UPDATE'
+            );
+            $lookup->execute(['product_id' => $productId, 'image_id' => $imageId]);
+            $before = $lookup->fetch();
+            if ($before === false) {
+                $this->connection->rollBack();
+                return false;
+            }
+
+            $update = $this->connection->prepare('UPDATE product_images SET alt_text = :alt_text WHERE id = :image_id');
+            $update->execute(['alt_text' => $altText, 'image_id' => $imageId]);
+            $this->audit($adminId, 'product.image_alt_updated', 'product_image', $imageId, [
+                'product_id' => (int) $before['product_id'],
+                'product_name' => $before['product_name'],
+                'image_url' => $before['image_url'],
+                'before_alt_text' => $before['alt_text'],
+                'after_alt_text' => $altText,
+            ]);
+            $this->connection->commit();
+
+            return true;
+        } catch (\Throwable $exception) {
+            $this->rollback();
+            throw $exception;
+        }
+    }
+
+    public function deleteProductImage(int $productId, int $imageId, int $adminId): ?string
+    {
+        $this->connection->beginTransaction();
+        try {
+            $lookup = $this->connection->prepare(
+                'SELECT pi.product_id, pi.image_url, pi.alt_text, p.name AS product_name '
+                . 'FROM product_images pi JOIN products p ON p.id = pi.product_id '
+                . 'WHERE pi.product_id = :product_id AND pi.id = :image_id FOR UPDATE'
+            );
+            $lookup->execute(['product_id' => $productId, 'image_id' => $imageId]);
+            $before = $lookup->fetch();
+            if ($before === false) {
+                $this->connection->rollBack();
+                return null;
+            }
+
+            $delete = $this->connection->prepare('DELETE FROM product_images WHERE id = :image_id');
+            $delete->execute(['image_id' => $imageId]);
+            $this->audit($adminId, 'product.image_deleted', 'product_image', $imageId, [
+                'product_id' => (int) $before['product_id'],
+                'product_name' => $before['product_name'],
+                'image_url' => $before['image_url'],
+                'alt_text' => $before['alt_text'],
+            ]);
+            $this->connection->commit();
+
+            return $before['image_url'];
+        } catch (\Throwable $exception) {
+            $this->rollback();
+            throw $exception;
+        }
+    }
+
     private function assertCategorySlugAvailable(string $slug, ?int $exceptId): void
     {
         $statement = $this->connection->prepare(
