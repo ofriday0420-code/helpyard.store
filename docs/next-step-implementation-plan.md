@@ -34,12 +34,14 @@ still pending.
   fresh disposable WSL MariaDB 11.8.8 instance after all 14 migrations and
   seeders were applied; the suite verifies clean/repeatable migrations,
   concurrent checkout reservation, and payment risk/late/rejection behavior.
-  The Windows PHP CLI has no PDO drivers and Docker is unavailable; the MySQL
-  8.4 GitHub Actions workflow still needs a hosted run after these changes are
-  pushed. SSLCOMMERZ sandbox callback behavior, upload content inspection, and
-  restore/load behavior remain unverified.
+  The hosted [MySQL 8.4 GitHub Actions run](https://github.com/ofriday0420-code/helpyard.store/actions/runs/37333898590)
+  passed on base commit `49e7e3f` on 05 October 2026; rerun it after the current
+  working-tree changes are pushed. The Windows PHP CLI has no PDO drivers and
+  Docker is unavailable. SSLCOMMERZ sandbox callback behavior, upload content
+  inspection, and restore/load behavior remain unverified.
 - Gate 0 remains open until product-owner decisions and the draft flows are
-  approved, and hosted CI demonstrates clean migrations and integration tests.
+  approved. Clean migrations and the expanded integration suite have passed in
+  hosted CI on `49e7e3f`, but the current uncommitted changes need a fresh run.
 - A first administrator order console is available at
   `/admin/orders`, with payment-review orders prioritized and an order detail
   view for customer/order snapshots, payment attempts and provider validation
@@ -49,8 +51,8 @@ still pending.
 
 ## Next work after Gate 0
 
-1. Run the expanded database-backed checkout/stock and payment callback cases
-   in hosted MySQL 8.4 CI; then fix any defects they expose.
+1. Rerun the expanded database-backed checkout/stock and payment callback cases
+   in hosted MySQL 8.4 CI for the current changes; fix any defects they expose.
 2. Run the SSLCOMMERZ sandbox success, cancel, fail, repeat, late, and risk
    matrix. Repository-level verified-validation tests do not replace a real
    provider sandbox run.
@@ -111,7 +113,9 @@ applicable.
 4. **Course fulfillment (first flow implemented)**
    - Add enrollment and lesson-access records tied to verified paid orders.
    - Add the first course-learning flow and customer course view.
+   - Add administrator authoring for course workspaces, ordered sections, and audited text lessons with draft/publication controls.
    - Acceptance: only entitled customers can access enrolled course content.
+   - Remaining: hosted video/media delivery and confirmation of lifetime/refund access rules.
 
 5. **Software licensing and ready-website delivery**
    - Define the product-specific delivery/licensing requirements before
@@ -142,10 +146,10 @@ applicable.
 
 The current delivery implements the first course schema and customer learning
 flow, CLI-only administrator provisioning, protected product-file upload
-and revocation, audited product/category and inventory management, and an
-administrator order/payment-review console with audited internal notes.
-Payment-review resolution, course authoring, email verification/reset,
-licensing, and production acceptance remain incomplete. A MySQL/MariaDB
-integration environment with PHP `pdo_mysql` is still required to validate
-migrations, audit transactions, file entitlements, inventory reservations, and customer ownership
-isolation.
+and revocation, audited product/category and inventory management, an
+administrator order/payment-review console with audited internal notes, and
+an initial audited text-course authoring workflow. Payment-review resolution,
+hosted video delivery, email verification/reset, licensing, and production
+acceptance remain incomplete. A MySQL/MariaDB integration environment with PHP
+`pdo_mysql` is still required to validate migrations, audit transactions, file
+entitlements, inventory reservations, and customer ownership isolation.
