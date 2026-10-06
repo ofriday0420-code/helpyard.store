@@ -9,6 +9,7 @@ use Helpyard\App\Core\Response;
 use Helpyard\App\Core\SessionSecurity;
 use Helpyard\App\Repositories\AdminCatalogRepository;
 use Helpyard\App\Services\AdminCatalogPolicy;
+use Helpyard\App\Services\ProductImageUploadService;
 use PDOException;
 use RuntimeException;
 
@@ -181,6 +182,188 @@ class AdminCatalogController
 
         $_SESSION['admin_catalog_notice'] = 'Product option inventory updated.';
         return $this->redirect('/admin/catalog');
+    }
+
+    public function productImages(array $params, ?Request $request = null): Response
+    {
+        SessionSecurity::start();
+        if (!$this->isAdmin()) {
+            return $this->forbiddenOrLogin();
+        }
+
+        $productId = CartController::positiveInteger($params['id'] ?? null, PHP_INT_MAX);
+        if ($productId === null) {
+            return new Response(404, ['Content-Type' => 'text/plain; charset=UTF-8'], 'Product not found.');
+        }
+
+        try {
+            $product = (new AdminCatalogRepository(Database::connect($this->databaseConfig)))
+                ->productImageWorkspace($productId);
+        } catch (PDOException | RuntimeException $exception) {
+            return $this->unavailable($exception);
+        }
+        if ($product === null) {
+            return new Response(404, ['Content-Type' => 'text/plain; charset=UTF-8'], 'Product not found.');
+        }
+
+        $remainingImageSlots = max(0, ProductImageUploadService::MAX_IMAGES_PER_PRODUCT - count($product['images']));
+        $csrfToken = SessionSecurity::csrfToken();
+        $notice = $this->consumeFlash('admin_catalog_notice');
+        $error = $this->consumeFlash('admin_catalog_error');
+        $title = 'Product images — ' . $product['name'];
+        $description = 'Manage the images and accessible descriptions for this product.';
+        ob_start();
+        require __DIR__ . '/../Views/admin/product-images.php';
+        $html = ob_get_clean();
+        if ($html === false) {
+            throw new RuntimeException('Could not render the product image manager.');
+        }
+
+        return new Response(200, ['Content-Type' => 'text/html; charset=UTF-8'], $html);
+    }
+
+    public function uploadProductImage(array $params, Request $request): Response
+    {
+        if (($response = $this->guardMutation($request)) !== null) {
+            return $response;
+        }
+        $productId = CartController::positiveInteger($params['id'] ?? null, PHP_INT_MAX);
+        if ($productId === null) {
+            return new Response(404, ['Content-Type' => 'text/plain; charset=UTF-8'], 'Product not found.');
+        }
+        $altText = $this->validatedImageAltText($request->body()['alt_text'] ?? null);
+        if ($altText === null) {
+            return $this->imageManagerError($productId, 'Enter descriptive alt text up to 255 characters.');
+        }
+        $upload = $request->files()['image'] ?? null;
+        if (!is_array($upload)) {
+            return $this->imageManagerError($productId, 'Choose a JPEG, PNG, or WebP image.');
+        }
+
+        try {
+            $storedImage = ProductImageUploadService::store(
+                $upload,
+                $productId,
+                dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public'
+            );
+        } catch (RuntimeException $exception) {
+            return $this->imageManagerError($productId, $exception->getMessage());
+        }
+
+        try {
+            (new AdminCatalogRepository(Database::connect($this->databaseConfig)))->addProductImage(
+                $productId,
+                $storedImage['image_url'],
+                $altText,
+                (int) $_SESSION['user_id']
+            );
+        } catch (AdminCatalogException $exception) {
+            $this->removeUnregisteredImage($storedImage['image_url']);
+            return $this->imageManagerError($productId, $exception->getMessage());
+        } catch (PDOException | RuntimeException $exception) {
+            $this->removeUnregisteredImage($storedImage['image_url']);
+            return $this->unavailable($exception);
+        }
+
+        $_SESSION['admin_catalog_notice'] = 'Product image uploaded.';
+        return $this->redirect('/admin/catalog/products/' . $productId . '/images');
+    }
+
+    public function updateProductImageAlt(array $params, Request $request): Response
+    {
+        if (($response = $this->guardMutation($request)) !== null) {
+            return $response;
+        }
+        $productId = CartController::positiveInteger($params['product_id'] ?? null, PHP_INT_MAX);
+        $imageId = CartController::positiveInteger($params['image_id'] ?? null, PHP_INT_MAX);
+        $altText = $this->validatedImageAltText($request->body()['alt_text'] ?? null);
+        if ($productId === null || $imageId === null) {
+            return new Response(404, ['Content-Type' => 'text/plain; charset=UTF-8'], 'Product image not found.');
+        }
+        if ($altText === null) {
+            return $this->imageManagerError($productId, 'Enter descriptive alt text up to 255 characters.');
+        }
+
+        try {
+            $updated = (new AdminCatalogRepository(Database::connect($this->databaseConfig)))
+                ->updateProductImageAltText($productId, $imageId, $altText, (int) $_SESSION['user_id']);
+        } catch (PDOException | RuntimeException $exception) {
+            return $this->unavailable($exception);
+        }
+        if (!$updated) {
+            return $this->imageManagerError($productId, 'That product image no longer exists.');
+        }
+
+        $_SESSION['admin_catalog_notice'] = 'Image description updated.';
+        return $this->redirect('/admin/catalog/products/' . $productId . '/images');
+    }
+
+    public function deleteProductImage(array $params, Request $request): Response
+    {
+        if (($response = $this->guardMutation($request)) !== null) {
+            return $response;
+        }
+        $productId = CartController::positiveInteger($params['product_id'] ?? null, PHP_INT_MAX);
+        $imageId = CartController::positiveInteger($params['image_id'] ?? null, PHP_INT_MAX);
+        if ($productId === null || $imageId === null) {
+            return new Response(404, ['Content-Type' => 'text/plain; charset=UTF-8'], 'Product image not found.');
+        }
+
+        try {
+            $imageUrl = (new AdminCatalogRepository(Database::connect($this->databaseConfig)))
+                ->deleteProductImage($productId, $imageId, (int) $_SESSION['user_id']);
+        } catch (PDOException | RuntimeException $exception) {
+            return $this->unavailable($exception);
+        }
+        if ($imageUrl === null) {
+            return $this->imageManagerError($productId, 'That product image no longer exists.');
+        }
+
+        try {
+            ProductImageUploadService::removeManagedImage(
+                $imageUrl,
+                dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public'
+            );
+        } catch (RuntimeException $exception) {
+            error_log('Product image row was removed, but its file could not be deleted: ' . $exception->getMessage());
+        }
+
+        $_SESSION['admin_catalog_notice'] = 'Product image removed.';
+        return $this->redirect('/admin/catalog/products/' . $productId . '/images');
+    }
+
+    private function validatedImageAltText(mixed $value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+        $altText = trim($value);
+        $length = preg_match_all('/./us', $altText);
+        if ($altText === '' || $length === false || $length > 255 || preg_match('/[\x00-\x1F\x7F]/', $altText)) {
+            return null;
+        }
+
+        return $altText;
+    }
+
+    private function imageManagerError(int $productId, string $message): Response
+    {
+        SessionSecurity::start();
+        $_SESSION['admin_catalog_error'] = $message;
+
+        return $this->redirect('/admin/catalog/products/' . $productId . '/images');
+    }
+
+    private function removeUnregisteredImage(string $imageUrl): void
+    {
+        try {
+            ProductImageUploadService::removeManagedImage(
+                $imageUrl,
+                dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'public'
+            );
+        } catch (RuntimeException $exception) {
+            error_log('Could not remove an unregistered product image: ' . $exception->getMessage());
+        }
     }
 
     private function guardMutation(Request $request): ?Response
