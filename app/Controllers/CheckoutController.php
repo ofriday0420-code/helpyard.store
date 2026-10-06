@@ -49,6 +49,7 @@ class CheckoutController
 
         $title = 'Checkout';
         $description = 'Confirm your saved delivery address and review your order.';
+        $paymentEnabled = ($this->paymentConfig['enabled'] ?? false) === true;
         $csrfToken = SessionSecurity::csrfToken();
         $error = $this->consumeFlash('checkout_error');
         ob_start();
