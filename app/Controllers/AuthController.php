@@ -6,6 +6,7 @@ use Helpyard\App\Core\Database;
 use Helpyard\App\Core\Request;
 use Helpyard\App\Core\Response;
 use Helpyard\App\Core\SessionSecurity;
+use Helpyard\App\Repositories\CartRepository;
 use Helpyard\App\Repositories\OrderRepository;
 use Helpyard\App\Repositories\UserRepository;
 use PDOException;
@@ -135,6 +136,21 @@ class AuthController
             return $this->unavailable($exception);
         }
 
+        $customerCartKey = null;
+        $mergedCartItemCount = 0;
+        if ($user['role'] === 'customer') {
+            $customerCartKey = 'account-' . (int) $user['id'];
+            $guestCartKey = $_SESSION['cart_key'] ?? null;
+            if (is_string($guestCartKey) && preg_match('/^[a-f0-9]{64}$/', $guestCartKey) === 1) {
+                try {
+                    $mergedCartItemCount = (new CartRepository(Database::connect($this->databaseConfig)))
+                        ->mergeCarts($guestCartKey, $customerCartKey);
+                } catch (PDOException | RuntimeException $exception) {
+                    return $this->unavailable($exception);
+                }
+            }
+        }
+
         if (!session_regenerate_id(true)) {
             error_log('Could not regenerate the session ID after login.');
             return new Response(500, ['Content-Type' => 'text/plain; charset=UTF-8'], 'Could not establish a secure session.');
@@ -143,6 +159,12 @@ class AuthController
         $_SESSION['user_id'] = (int) $user['id'];
         $_SESSION['user_name'] = $user['name'];
         $_SESSION['user_role'] = $user['role'];
+        if ($customerCartKey !== null) {
+            $_SESSION['cart_key'] = $customerCartKey;
+        }
+        if ($mergedCartItemCount > 0) {
+            $_SESSION['cart_notice'] = 'Your guest cart is now part of your account cart. Review availability before checkout.';
+        }
         unset($_SESSION['csrf_token']);
 
         return $this->redirect($user['role'] === 'admin' ? '/admin/fulfillment' : '/account');
