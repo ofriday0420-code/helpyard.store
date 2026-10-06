@@ -46,7 +46,10 @@
                         </fieldset>
                         <button class="button button-primary" type="submit" <?= $canSubmit ? '' : 'disabled' ?>>Place order</button>
                     </form>
-                    <p class="checkout-note">This creates a payment-pending order and temporarily reserves the shown stock for 30 minutes. Payment processing is not configured yet; no charge will be made.</p>
+                    <p class="checkout-note">
+                        Placing the order reserves the shown stock for 30 minutes.
+                        <?php if ($paymentEnabled): ?>You can then pay securely through SSLCOMMERZ.<?php else: ?>Online payment is not configured; no online charge can be made.<?php endif; ?>
+                    </p>
                 <?php endif; ?>
             </section>
 
@@ -59,7 +62,10 @@
                     </p>
                 <?php endforeach; ?>
                 <p class="checkout-total"><span>Subtotal</span><strong><?= htmlspecialchars((string) $cart['subtotal'], ENT_QUOTES, 'UTF-8') ?> BDT</strong></p>
-                <p class="cart-checkout-note">The server checks current prices and stock again when you place the order. Shipping and payment are not yet configured.</p>
+                <p class="cart-checkout-note">
+                    The server checks current prices and stock again when you place the order. Shipping charges are not included in this subtotal.
+                    <?php if ($paymentEnabled): ?>Online payment through SSLCOMMERZ is configured.<?php else: ?>Online payment is not configured yet.<?php endif; ?>
+                </p>
                 <?php if (!$canSubmit && $addresses !== []): ?>
                     <p class="cart-feedback is-error">One or more cart items are unavailable or exceed current stock. <a href="/cart">Review your cart</a>.</p>
                 <?php endif; ?>
