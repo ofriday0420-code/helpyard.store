@@ -10,6 +10,7 @@
             <a class="button button-secondary" href="/admin/orders">Order administration</a>
             <a class="button button-secondary" href="/admin/fulfillment">Physical fulfillment</a>
             <a class="button button-secondary" href="/admin/files">Manage private product files</a>
+            <a class="button button-secondary" href="/admin/courses">Author course lessons</a>
         </div>
         <p>Create and maintain categories, product listings, prices, and inventory. Product types cannot be changed after creation so paid-order records remain consistent.</p>
     </section>
