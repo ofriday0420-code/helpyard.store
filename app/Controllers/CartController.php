@@ -13,7 +13,10 @@ use RuntimeException;
 
 class CartController
 {
-    public function __construct(private array $databaseConfig)
+    public function __construct(
+        private array $databaseConfig,
+        private array $paymentConfig = []
+    )
     {
     }
 
@@ -29,6 +32,7 @@ class CartController
 
         $title = 'Your cart';
         $description = 'Review products in your Helpyard.store cart.';
+        $paymentEnabled = ($this->paymentConfig['enabled'] ?? false) === true;
         $csrfToken = SessionSecurity::csrfToken();
         $error = $this->consumeFlash('cart_error');
         $notice = $this->consumeFlash('cart_notice');
