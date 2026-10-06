@@ -63,7 +63,10 @@
             <aside class="cart-summary" aria-label="Order summary">
                 <h2>Summary</h2>
                 <p><span>Subtotal</span><strong><?= htmlspecialchars((string) $cart['subtotal'], ENT_QUOTES, 'UTF-8') ?> BDT</strong></p>
-                <p class="cart-checkout-note">Sign in and confirm a saved delivery address to place an order. Payment is not configured yet.</p>
+                <p class="cart-checkout-note">
+                    Sign in and confirm a saved delivery address to place an order. Shipping charges are not included in this subtotal.
+                    <?php if ($paymentEnabled): ?>Online payment through SSLCOMMERZ is configured.<?php else: ?>Online payment is not configured yet; no online charge can be made.<?php endif; ?>
+                </p>
                 <a class="button button-primary" href="/checkout">Continue to checkout</a>
                 <a class="button button-secondary" href="/products">Continue shopping</a>
             </aside>
