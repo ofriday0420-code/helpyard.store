@@ -22,6 +22,16 @@ class Router
         return $this->add('POST', $path, $handler);
     }
 
+    public function patch(string $path, callable|array $handler): self
+    {
+        return $this->add('PATCH', $path, $handler);
+    }
+
+    public function delete(string $path, callable|array $handler): self
+    {
+        return $this->add('DELETE', $path, $handler);
+    }
+
     public function add(string $method, string $path, callable|array $handler): self
     {
         $this->routes[strtoupper($method)][$path] = $handler;
