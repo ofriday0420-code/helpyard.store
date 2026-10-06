@@ -54,14 +54,13 @@
                             <section class="admin-product-card" aria-labelledby="section-<?= (int) $section['id'] ?>-title">
                                 <h4 id="section-<?= (int) $section['id'] ?>-title">Section <?= (int) $section['position'] ?>: <?= htmlspecialchars($section['title'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></h4>
                                 <?php foreach ($section['lessons'] as $lesson): ?>
-                                    <form class="admin-edit-form" method="post" action="/admin/courses/lessons/<?= (int) $lesson['id'] ?>">
-                                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                                        <label>Lesson title <input name="title" maxlength="180" value="<?= htmlspecialchars($lesson['title'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" required></label>
-                                        <label>Lesson text <textarea name="content" rows="6" maxlength="250000" required><?= htmlspecialchars($lesson['content'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></textarea></label>
-                                        <label class="admin-check"><input type="checkbox" name="is_published" value="1" <?= (int) $lesson['is_published'] === 1 ? 'checked' : '' ?>> Published for enrolled customers</label>
-                                        <p>Lesson <?= (int) $lesson['position'] ?> · <?= (int) $lesson['is_published'] === 1 ? 'published' : 'draft' ?></p>
-                                        <button class="button button-secondary" type="submit">Save lesson</button>
-                                    </form>
+                                    <article class="order-item">
+                                        <div>
+                                            <h5>Lesson <?= (int) $lesson['position'] ?>: <?= htmlspecialchars($lesson['title'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></h5>
+                                            <p><?= (int) $lesson['is_published'] === 1 ? 'Published for enrolled customers' : 'Draft · not visible to customers' ?></p>
+                                        </div>
+                                        <a class="button button-secondary" href="/admin/courses/lessons/<?= (int) $lesson['id'] ?>/edit">Edit lesson</a>
+                                    </article>
                                 <?php endforeach; ?>
                                 <form class="admin-edit-form" method="post" action="/admin/courses/sections/<?= (int) $section['id'] ?>/lessons">
                                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
