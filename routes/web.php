@@ -10,11 +10,12 @@ use Helpyard\App\Controllers\DownloadController;
 use Helpyard\App\Controllers\CourseController;
 use Helpyard\App\Controllers\AdminFileController;
 use Helpyard\App\Controllers\AdminCatalogController;
+use Helpyard\App\Controllers\AdminCourseController;
 use Helpyard\App\Controllers\AdminOrderController;
 use Helpyard\App\Core\Router;
 
 $auth = new AuthController($config['database']);
-$cart = new CartController($config['database']);
+$cart = new CartController($config['database'], $config['payment']);
 $checkout = new CheckoutController($config['database'], $config['payment']);
 $payments = new PaymentController($config['database'], $config['payment']);
 $adminFulfillment = new AdminFulfillmentController($config['database']);
@@ -22,8 +23,14 @@ $downloads = new DownloadController($config['database'], $config['app']['private
 $courses = new CourseController($config['database']);
 $adminFiles = new AdminFileController($config['database'], $config['app']['private_storage']);
 $adminCatalog = new AdminCatalogController($config['database']);
+$adminCourses = new AdminCourseController($config['database']);
 $adminOrders = new AdminOrderController($config['database']);
 $webRouter = new Router();
+$webRouter->get('/admin/courses', [$adminCourses, 'index']);
+$webRouter->post('/admin/courses', [$adminCourses, 'createCourse']);
+$webRouter->post('/admin/courses/{course_id}/sections', [$adminCourses, 'createSection']);
+$webRouter->post('/admin/courses/sections/{section_id}/lessons', [$adminCourses, 'createLesson']);
+$webRouter->post('/admin/courses/lessons/{lesson_id}', [$adminCourses, 'updateLesson']);
 $webRouter->get('/admin/orders', [$adminOrders, 'index']);
 $webRouter->get('/admin/orders/{id}', [$adminOrders, 'show']);
 $webRouter->post('/admin/orders/{id}/notes', [$adminOrders, 'addNote']);
