@@ -85,7 +85,7 @@ applicable.
    - Provision admins through a trusted CLI operation and record audit events.
    - Upload/revoke protected product files, updating paid-order entitlements.
    - Manage categories, products, pricing, and product/option inventory.
-   - Remaining: full course authoring, image management, and order/payment-review CRUD.
+   - Remaining: course section editing/reordering and richer media delivery, image management, and order/payment-review CRUD.
 
 2. **Physical-order fulfillment and shipment tracking (implemented)**
    - Snapshot each order line's product type at checkout.
@@ -113,9 +113,9 @@ applicable.
 4. **Course fulfillment (first flow implemented)**
    - Add enrollment and lesson-access records tied to verified paid orders.
    - Add the first course-learning flow and customer course view.
-   - Add administrator authoring for course workspaces, ordered sections, and audited text lessons with draft/publication controls.
+   - Add administrator authoring for course workspaces, ordered sections, and audited text lessons with draft/publication controls; edit long lesson bodies on a dedicated page so the overview stays small.
    - Acceptance: only entitled customers can access enrolled course content.
-   - Remaining: hosted video/media delivery and confirmation of lifetime/refund access rules.
+   - Remaining: section editing/reordering, hosted video/media delivery, and confirmation of lifetime/refund access rules.
 
 5. **Software licensing and ready-website delivery**
    - Define the product-specific delivery/licensing requirements before
