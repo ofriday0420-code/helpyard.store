@@ -74,6 +74,40 @@ class AdminCourseController
         return $this->redirect('/admin/courses#course-' . $courseId);
     }
 
+    public function editLesson(array $params, ?Request $request = null): Response
+    {
+        SessionSecurity::start();
+        if (!$this->isAdmin()) {
+            return $this->forbiddenOrLogin();
+        }
+        $lessonId = CartController::positiveInteger($params['lesson_id'] ?? null, PHP_INT_MAX);
+        if ($lessonId === null) {
+            return $this->notFound();
+        }
+
+        try {
+            $lesson = (new AdminCourseRepository(Database::connect($this->databaseConfig)))
+                ->findLessonForAdmin($lessonId);
+        } catch (PDOException | RuntimeException $exception) {
+            return $this->unavailable($exception);
+        }
+        if ($lesson === null) {
+            return $this->notFound();
+        }
+
+        $csrfToken = SessionSecurity::csrfToken();
+        $title = 'Edit course lesson';
+        $description = 'Edit and publish a course lesson.';
+        ob_start();
+        require __DIR__ . '/../Views/admin/course-lesson.php';
+        $html = ob_get_clean();
+        if ($html === false) {
+            throw new RuntimeException('Could not render the course lesson editor.');
+        }
+
+        return new Response(200, ['Content-Type' => 'text/html; charset=UTF-8'], $html);
+    }
+
     public function createSection(array $params, Request $request): Response
     {
         if (($response = $this->guardMutation($request)) !== null) {
@@ -144,7 +178,7 @@ class AdminCourseController
         }
 
         $_SESSION['admin_courses_notice'] = 'Lesson updated.';
-        return $this->redirect('/admin/courses');
+        return $this->redirect('/admin/courses#course-' . $updated);
     }
 
     private function guardMutation(Request $request): ?Response
@@ -192,6 +226,11 @@ class AdminCourseController
     private function redirect(string $location): Response
     {
         return new Response(303, ['Location' => $location], '');
+    }
+
+    private function notFound(): Response
+    {
+        return new Response(404, ['Content-Type' => 'text/plain; charset=UTF-8'], 'Course lesson not found.');
     }
 
     private function unavailable(PDOException | RuntimeException $exception): Response
