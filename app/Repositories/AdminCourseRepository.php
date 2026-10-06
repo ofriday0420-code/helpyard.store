@@ -44,7 +44,7 @@ class AdminCourseRepository
             $placeholders = implode(',', array_fill(0, count($courseIndexes), '?'));
             $sections = $this->connection->prepare(
                 'SELECT s.id AS section_id, s.course_id, s.title AS section_title, s.position AS section_position, '
-                . 'l.id AS lesson_id, l.title AS lesson_title, l.content AS lesson_content, '
+                . 'l.id AS lesson_id, l.title AS lesson_title, '
                 . 'l.position AS lesson_position, l.is_published '
                 . 'FROM course_sections s LEFT JOIN course_lessons l ON l.section_id = s.id '
                 . 'WHERE s.course_id IN (' . $placeholders . ') '
@@ -69,7 +69,6 @@ class AdminCourseRepository
                     $courses[$courseIndex]['sections'][$sectionIndex]['lessons'][] = [
                         'id' => (int) $row['lesson_id'],
                         'title' => $row['lesson_title'],
-                        'content' => $row['lesson_content'],
                         'position' => (int) $row['lesson_position'],
                         'is_published' => (int) $row['is_published'],
                     ];
@@ -78,6 +77,23 @@ class AdminCourseRepository
         }
 
         return ['courses' => $courses, 'products_without_courses' => $productIdsWithoutCourses];
+    }
+
+    public function findLessonForAdmin(int $lessonId): ?array
+    {
+        $statement = $this->connection->prepare(
+            'SELECT l.id, l.section_id, l.title, l.content, l.position, l.is_published, '
+            . 's.title AS section_title, c.id AS course_id, p.name AS course_name '
+            . 'FROM course_lessons l '
+            . 'JOIN course_sections s ON s.id = l.section_id '
+            . 'JOIN courses c ON c.id = s.course_id '
+            . 'JOIN products p ON p.id = c.product_id '
+            . 'WHERE l.id = :lesson_id LIMIT 1'
+        );
+        $statement->execute(['lesson_id' => $lessonId]);
+        $lesson = $statement->fetch();
+
+        return $lesson === false ? null : $lesson;
     }
 
     public function createCourseForProduct(int $productId, int $adminId): int|false
@@ -191,7 +207,7 @@ class AdminCourseRepository
         }
     }
 
-    public function updateLesson(int $lessonId, array $lesson, int $adminId): bool
+    public function updateLesson(int $lessonId, array $lesson, int $adminId): int|false
     {
         $this->connection->beginTransaction();
         try {
@@ -233,7 +249,7 @@ class AdminCourseRepository
             ]);
             $this->connection->commit();
 
-            return true;
+            return (int) $before['course_id'];
         } catch (\Throwable $exception) {
             $this->rollback();
             throw $exception;
