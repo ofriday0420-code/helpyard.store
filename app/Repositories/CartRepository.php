@@ -167,6 +167,100 @@ class CartRepository
         return $statement->rowCount() > 0;
     }
 
+    public function mergeCarts(string $guestCartKey, string $customerCartKey): int
+    {
+        if ($guestCartKey === '' || $customerCartKey === '' || hash_equals($guestCartKey, $customerCartKey)) {
+            return 0;
+        }
+
+        $this->connection->beginTransaction();
+        try {
+            $ensureCustomerCart = $this->connection->prepare(
+                'INSERT INTO carts (session_id) VALUES (:session_id) '
+                . 'ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)'
+            );
+            $ensureCustomerCart->execute(['session_id' => $customerCartKey]);
+            $guestQuery = $this->connection->prepare(
+                'SELECT id FROM carts WHERE session_id = :session_id AND user_id IS NULL LIMIT 1 FOR UPDATE'
+            );
+            $guestQuery->execute(['session_id' => $guestCartKey]);
+            $guestCartId = $guestQuery->fetchColumn();
+            if ($guestCartId === false) {
+                $this->connection->commit();
+                return 0;
+            }
+
+            $customerQuery = $this->connection->prepare(
+                'SELECT id FROM carts WHERE session_id = :session_id LIMIT 1 FOR UPDATE'
+            );
+            $customerQuery->execute(['session_id' => $customerCartKey]);
+            $customerCartId = $customerQuery->fetchColumn();
+            if ($customerCartId === false) {
+                throw new RuntimeException('Could not load the customer cart.');
+            }
+
+            $guestItems = $this->connection->prepare(
+                'SELECT id, product_id, product_variant_id, quantity FROM cart_items '
+                . 'WHERE cart_id = :cart_id ORDER BY id FOR UPDATE'
+            );
+            $guestItems->execute(['cart_id' => $guestCartId]);
+            $items = $guestItems->fetchAll();
+            $customerItem = $this->connection->prepare(
+                'SELECT id, quantity FROM cart_items WHERE cart_id = :cart_id '
+                . 'AND product_id = :product_id AND product_variant_id <=> :variant_id '
+                . 'ORDER BY id LIMIT 1 FOR UPDATE'
+            );
+            $mergeItem = $this->connection->prepare(
+                'UPDATE cart_items SET quantity = :quantity WHERE id = :item_id AND cart_id = :cart_id'
+            );
+            $moveItem = $this->connection->prepare(
+                'UPDATE cart_items SET cart_id = :customer_cart_id WHERE id = :item_id AND cart_id = :guest_cart_id'
+            );
+            $deleteItem = $this->connection->prepare(
+                'DELETE FROM cart_items WHERE id = :item_id AND cart_id = :guest_cart_id'
+            );
+
+            foreach ($items as $item) {
+                $customerItem->execute([
+                    'cart_id' => $customerCartId,
+                    'product_id' => $item['product_id'],
+                    'variant_id' => $item['product_variant_id'],
+                ]);
+                $existing = $customerItem->fetch();
+                if ($existing === false) {
+                    $moveItem->execute([
+                        'customer_cart_id' => $customerCartId,
+                        'item_id' => $item['id'],
+                        'guest_cart_id' => $guestCartId,
+                    ]);
+                    continue;
+                }
+
+                $combinedQuantity = min(99, (int) $existing['quantity'] + (int) $item['quantity']);
+                $mergeItem->execute([
+                    'quantity' => $combinedQuantity,
+                    'item_id' => $existing['id'],
+                    'cart_id' => $customerCartId,
+                ]);
+                $deleteItem->execute(['item_id' => $item['id'], 'guest_cart_id' => $guestCartId]);
+            }
+
+            $deleteGuestCart = $this->connection->prepare('DELETE FROM carts WHERE id = :cart_id AND user_id IS NULL');
+            $deleteGuestCart->execute(['cart_id' => $guestCartId]);
+            if ($deleteGuestCart->rowCount() !== 1) {
+                throw new RuntimeException('The guest cart could not be cleared after merging.');
+            }
+            $this->connection->commit();
+
+            return count($items);
+        } catch (\Throwable $exception) {
+            if ($this->connection->inTransaction()) {
+                $this->connection->rollBack();
+            }
+            throw $exception;
+        }
+    }
+
     public function contents(string $cartKey): array
     {
         $cartId = $this->findCart($cartKey);
