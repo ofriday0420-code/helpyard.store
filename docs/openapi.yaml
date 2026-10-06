@@ -1,11 +1,10 @@
 openapi: 3.1.0
 info:
-  title: Helpyard.store Public Catalog API
+  title: Helpyard.store API
   version: 1.0.0
   description: >-
-    Contract for the public catalog endpoints currently implemented by Helpyard.store.
-    Customer authentication, cart, checkout, and order APIs are not part of this contract
-    because the application currently exposes those flows through web routes.
+    Contract for the public catalog API and authenticated customer account, cart, order,
+    and course endpoints. Checkout and payment initiation remain web-only.
 servers:
   - url: /
 paths:
@@ -136,7 +135,403 @@ paths:
                       $ref: '#/components/schemas/Category'
         '503':
           $ref: '#/components/responses/Unavailable'
+  /api/v1/auth/token:
+    post:
+      operationId: issueCustomerToken
+      summary: Sign in and issue a customer bearer token
+      description: >-
+        Tokens are returned once, expire after 30 days, and are stored as hashes. Customer
+        credentials share the web sign-in rate limit. Administrator accounts cannot use
+        the customer API. Each account keeps at most ten active tokens; issuing an eleventh
+        revokes the oldest active token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                device_name:
+                  type: string
+                  maxLength: 80
+      responses:
+        '201':
+          description: Customer token issued. Store the token securely; it is not returned again.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedToken'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          description: Too many recent sign-in attempts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/auth/revoke:
+    post:
+      operationId: revokeCurrentCustomerToken
+      summary: Revoke the current bearer token
+      security:
+        - customerBearer: []
+      responses:
+        '204':
+          description: Token revoked.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/auth/tokens:
+    get:
+      operationId: listCustomerTokens
+      summary: List active tokens for the signed-in customer
+      security:
+        - customerBearer: []
+      responses:
+        '200':
+          description: Active token metadata. Secret token values are never returned here.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, tokens]
+                properties:
+                  success:
+                    const: true
+                  tokens:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CustomerToken'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/auth/tokens/{id}:
+    delete:
+      operationId: revokeCustomerToken
+      summary: Revoke one of the customer's active tokens
+      security:
+        - customerBearer: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Token revoked.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/account:
+    get:
+      operationId: getCustomerAccount
+      summary: Get the signed-in customer profile
+      security:
+        - customerBearer: []
+      responses:
+        '200':
+          description: Customer profile.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, customer]
+                properties:
+                  success:
+                    const: true
+                  customer:
+                    $ref: '#/components/schemas/Customer'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/orders:
+    get:
+      operationId: listCustomerOrders
+      summary: List the signed-in customer's latest orders
+      security:
+        - customerBearer: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Customer's recent orders, newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, orders]
+                properties:
+                  success:
+                    const: true
+                  orders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OrderSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/orders/{id}:
+    get:
+      operationId: getCustomerOrder
+      summary: Get a customer-owned order and shipment details
+      security:
+        - customerBearer: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Customer-owned order details.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, order]
+                properties:
+                  success:
+                    const: true
+                  order:
+                    $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/courses:
+    get:
+      operationId: listCustomerCourses
+      summary: List courses with verified customer enrollment
+      security:
+        - customerBearer: []
+      responses:
+        '200':
+          description: Enrolled courses and lesson progress.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, courses]
+                properties:
+                  success:
+                    const: true
+                  courses:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CourseSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/courses/{id}:
+    get:
+      operationId: getCustomerCourse
+      summary: Get published lesson content for an enrolled course
+      security:
+        - customerBearer: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Course sections, published lessons, and customer progress.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, course]
+                properties:
+                  success:
+                    const: true
+                  course:
+                    $ref: '#/components/schemas/Course'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/courses/{id}/lessons/{lesson_id}/complete:
+    post:
+      operationId: completeCustomerLesson
+      summary: Mark an accessible published lesson complete
+      security:
+        - customerBearer: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: lesson_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Lesson progress was recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, completed]
+                properties:
+                  success:
+                    const: true
+                  completed:
+                    const: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/cart:
+    get:
+      operationId: getCustomerCart
+      summary: Get the customer's account cart
+      description: The account cart is shared with the browser cart after the customer signs in.
+      security:
+        - customerBearer: []
+      responses:
+        '200':
+          description: Current cart contents and subtotal.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/cart/items:
+    post:
+      operationId: addCustomerCartItem
+      summary: Add an active product to the API cart
+      security:
+        - customerBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_id]
+              properties:
+                product_id:
+                  type: integer
+                  minimum: 1
+                variant_id:
+                  type: [integer, 'null']
+                  minimum: 1
+                quantity:
+                  type: integer
+                  minimum: 1
+                  maximum: 99
+                  default: 1
+      responses:
+        '200':
+          description: Updated cart.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Product, option, or requested stock is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/cart/items/{id}:
+    patch:
+      operationId: updateCustomerCartItem
+      summary: Set a cart item quantity
+      security:
+        - customerBearer: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity]
+              properties:
+                quantity:
+                  type: integer
+                  minimum: 1
+                  maximum: 99
+      responses:
+        '200':
+          description: Updated cart.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The requested quantity is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    delete:
+      operationId: removeCustomerCartItem
+      summary: Remove a cart item
+      security:
+        - customerBearer: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Updated cart.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
 components:
+  securitySchemes:
+    customerBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: 64-character random token
   parameters:
     Slug:
       name: slug
@@ -146,21 +541,38 @@ components:
       schema:
         type: string
         pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
   responses:
     BadRequest:
-      description: Invalid filter or search input.
+      description: Request parameter or JSON body is invalid.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
     NotFound:
-      description: Product does not exist or is not visible.
+      description: Requested resource does not exist or is not visible to this customer.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
     Unavailable:
-      description: Catalog database is unavailable.
+      description: The database or a required service is unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing, expired, revoked, or invalid bearer token.
+      headers:
+        WWW-Authenticate:
+          schema:
+            type: string
       content:
         application/json:
           schema:
@@ -270,3 +682,161 @@ components:
                     type: [integer, string]
                   attributes:
                     type: [object, 'null']
+    Customer:
+      type: object
+      required: [id, name, email]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+    IssuedToken:
+      type: object
+      required: [success, token_type, access_token, expires_at, customer]
+      properties:
+        success:
+          const: true
+        token_type:
+          const: Bearer
+        access_token:
+          type: string
+          description: Returned once. Store in secure platform storage.
+        expires_at:
+          type: string
+          format: date-time
+        customer:
+          $ref: '#/components/schemas/Customer'
+    CustomerToken:
+      type: object
+      required: [id, name, created_at, expires_at, last_used_at]
+      properties:
+        id:
+          type: [integer, string]
+        name:
+          type: string
+        created_at:
+          type: string
+          description: UTC timestamp as returned by MySQL.
+        expires_at:
+          type: string
+          description: UTC timestamp as returned by MySQL.
+        last_used_at:
+          type: [string, 'null']
+          description: UTC timestamp as returned by MySQL, or null before first use.
+    OrderSummary:
+      type: object
+      required: [id, order_number, status, final_total, created_at]
+      properties:
+        id:
+          type: [integer, string]
+        order_number:
+          type: string
+        status:
+          type: string
+        final_total:
+          type: [number, string]
+        created_at:
+          type: string
+          description: Timestamp as returned by MySQL.
+    Order:
+      allOf:
+        - $ref: '#/components/schemas/OrderSummary'
+        - type: object
+          required: [items, shipment]
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  product_name:
+                    type: string
+                  quantity:
+                    type: [integer, string]
+                  unit_price:
+                    type: [number, string]
+            shipment:
+              type: [object, 'null']
+    CourseSummary:
+      type: object
+      required: [id, name, slug, lesson_count, completed_count]
+      properties:
+        id:
+          type: [integer, string]
+        name:
+          type: string
+        slug:
+          type: string
+        lesson_count:
+          type: [integer, string]
+        completed_count:
+          type: [integer, string]
+    Course:
+      type: object
+      required: [id, name, slug, sections]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        sections:
+          type: array
+          items:
+            type: object
+            required: [id, title, lessons]
+            properties:
+              id:
+                type: integer
+              title:
+                type: string
+              lessons:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    title:
+                      type: string
+                    content:
+                      type: string
+                    completed_at:
+                      type: [string, 'null']
+    Cart:
+      type: object
+      required: [items, subtotal]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              cart_item_id:
+                type: [integer, string]
+              product_id:
+                type: [integer, string]
+              name:
+                type: string
+              quantity:
+                type: [integer, string]
+              current_price:
+                type: [number, string]
+              line_total:
+                type: [number, string]
+              is_available:
+                type: [integer, string]
+        subtotal:
+          type: [number, string]
+    CartResponse:
+      type: object
+      required: [success, cart]
+      properties:
+        success:
+          const: true
+        cart:
+          $ref: '#/components/schemas/Cart'
