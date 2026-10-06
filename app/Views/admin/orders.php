@@ -11,6 +11,7 @@
             <a class="button button-secondary" href="/admin/fulfillment">Physical fulfillment</a>
             <a class="button button-secondary" href="/admin/catalog">Manage catalog</a>
             <a class="button button-secondary" href="/admin/files">Manage private files</a>
+            <a class="button button-secondary" href="/admin/courses">Course authoring</a>
         </div>
     </section>
     <?php if ($orders === []): ?>
