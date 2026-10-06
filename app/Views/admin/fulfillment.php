@@ -11,6 +11,7 @@
             <a class="button button-secondary" href="/admin/orders">Order administration</a>
             <a class="button button-secondary" href="/admin/catalog">Manage catalog</a>
             <a class="button button-secondary" href="/admin/files">Manage private product files</a>
+            <a class="button button-secondary" href="/admin/courses">Author course lessons</a>
         </div>
     </section>
     <?php if ($notice !== ''): ?><p class="cart-feedback" role="status"><?= htmlspecialchars($notice, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></p><?php endif; ?>
