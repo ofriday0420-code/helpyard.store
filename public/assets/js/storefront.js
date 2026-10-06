@@ -172,7 +172,7 @@
                 ? `<div class="detail-thumbnails">${images.map((image, index) => {
                     const url = safeImageUrl(image.image_url);
                     if (!url) return '';
-                    return `<button class="detail-thumb" type="button" data-image="${escapeHtml(url)}" data-alt="${escapeHtml(image.alt_text || product.name)}" aria-pressed="${index === 0}">
+                    return `<button class="detail-thumb" type="button" data-image="${escapeHtml(url)}" data-alt="${escapeHtml(image.alt_text || product.name)}" aria-label="Show image ${index + 1}: ${escapeHtml(image.alt_text || product.name)}" aria-pressed="${index === 0}">
                         <img src="${escapeHtml(url)}" alt="" loading="lazy">
                     </button>`;
                 }).join('')}</div>`
@@ -245,7 +245,11 @@
 
         fetchJson(detail.dataset.api)
             .then((data) => renderDetail(data.product))
-            .catch((error) => showMessage(detail, error.message || 'Unable to load this product right now.', true));
+            .catch((error) => {
+                if (detail.dataset.serverRendered !== '1') {
+                    showMessage(detail, error.message || 'Unable to load this product right now.', true);
+                }
+            });
     }
 
     const menuToggle = document.querySelector('.menu-toggle');
