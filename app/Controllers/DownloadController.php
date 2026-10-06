@@ -27,7 +27,7 @@ class DownloadController
         try {
             $downloads = (new DownloadRepository(Database::connect($this->databaseConfig)))
                 ->forCustomer((int) $_SESSION['user_id']);
-        } catch (PDOException | RuntimeException $exception) {
+        } catch (\Throwable $exception) {
             return $this->unavailable($exception);
         }
 
@@ -40,7 +40,12 @@ class DownloadController
             throw new RuntimeException('Could not render the customer downloads page.');
         }
 
-        return new Response(200, ['Content-Type' => 'text/html; charset=UTF-8'], $html);
+        return new Response(200, [
+            'Content-Type' => 'text/html; charset=UTF-8',
+            'Cache-Control' => 'private, no-store',
+            'Referrer-Policy' => 'no-referrer',
+            'X-Content-Type-Options' => 'nosniff',
+        ], $html);
     }
 
     public function download(array $params, ?Request $request = null): Response
@@ -54,10 +59,17 @@ class DownloadController
         if ($entitlementId === null) {
             return $this->notFound();
         }
+        $query = $request?->query() ?? [];
+        $token = $query['token'] ?? null;
+        if (!is_string($token) || preg_match('/^[a-f0-9]{64}$/', $token) !== 1) {
+            return $this->notFound();
+        }
 
+        $repository = null;
+        $handle = null;
         try {
-            $download = (new DownloadRepository(Database::connect($this->databaseConfig)))
-                ->findForCustomer($entitlementId, (int) $_SESSION['user_id']);
+            $repository = new DownloadRepository(Database::connect($this->databaseConfig));
+            $download = $repository->findForCustomer($entitlementId, (int) $_SESSION['user_id'], $token);
             if ($download === null) {
                 return $this->notFound();
             }
@@ -72,11 +84,33 @@ class DownloadController
             if (!is_string($asciiName) || $asciiName === '') {
                 $asciiName = 'download';
             }
+
+            $handle = fopen($privateFile, 'rb');
+            if ($handle === false) {
+                $handle = null;
+                throw new RuntimeException('Could not open the authorized private download.');
+            }
+            if (!$repository->consumeForCustomer($entitlementId, (int) $_SESSION['user_id'], $token)) {
+                fclose($handle);
+                $handle = null;
+                return $this->notFound();
+            }
         } catch (PDOException $exception) {
+            if (is_resource($handle)) {
+                fclose($handle);
+            }
             return $this->unavailable($exception);
         } catch (RuntimeException $exception) {
+            if (is_resource($handle)) {
+                fclose($handle);
+            }
             error_log('Private download could not be served: ' . $exception->getMessage());
             return $this->notFound();
+        } catch (\Throwable $exception) {
+            if (is_resource($handle)) {
+                fclose($handle);
+            }
+            return $this->unavailable($exception);
         }
 
         $encodedName = rawurlencode($downloadName);
@@ -85,11 +119,7 @@ class DownloadController
             'Content-Disposition' => 'attachment; filename="' . $asciiName . '"; filename*=UTF-8\'\'' . $encodedName,
             'Cache-Control' => 'private, no-store',
             'X-Content-Type-Options' => 'nosniff',
-        ], static function () use ($privateFile): void {
-            $handle = fopen($privateFile, 'rb');
-            if ($handle === false) {
-                throw new RuntimeException('Could not open the authorized private download.');
-            }
+        ], static function () use ($handle): void {
             try {
                 if (fpassthru($handle) === false) {
                     throw new RuntimeException('Could not stream the authorized private download.');
@@ -116,7 +146,7 @@ class DownloadController
         return new Response(404, ['Content-Type' => 'text/plain; charset=UTF-8'], 'Download not found.');
     }
 
-    private function unavailable(PDOException | RuntimeException $exception): Response
+    private function unavailable(\Throwable $exception): Response
     {
         error_log('Customer downloads request failed: ' . $exception->getMessage());
 
